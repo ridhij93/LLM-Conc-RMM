@@ -1,0 +1,17 @@
+# Ignore Python virtual environments
+venv/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore model checkpoints or large binary files
+*.ckpt
+*.pt
+
+# Ignore logs and other generated files
+logs/
+*.log
+
+# Ignore any local configuration specific to your environment
+.env
+
