@@ -14,14 +14,14 @@ std::atomic<int> b;
 void *thread1(void *threadid)
 {
     atomic_store(&x, 2);
-    std::atomic_thread_fence(std::memory_order_seq_cst); // Memory barrier
+    std::atomic_thread_fence(std::memory_order_seq_cst); 
     atomic_store(&y, 1);
 }
 
 void *thread2(void *threadid)
 {
     atomic_store(&y, 2);
-    std::atomic_thread_fence(std::memory_order_seq_cst); // Memory barrier
+    std::atomic_thread_fence(std::memory_order_seq_cst); 
     atomic_store(&x, 1);
 }
 
@@ -60,6 +60,4 @@ int main()
   (void) pthread_join(threads[2], NULL);
   (void) pthread_join(threads[3], NULL);
   assert (a != 1 || b != 1);
-  // if (a==1 && b==1)
-  //   std::cout << "Assertion failed"<< '\n';
 }

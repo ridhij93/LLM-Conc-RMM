@@ -21,7 +21,7 @@ void *thread2(void *threadid)
     int p, q;
     p = atomic_load(&x);
     q = atomic_load(&x);
-    if ((p == 2) && (q == 1))
+    if ((p == 2) && (q == 0))
     {
         atomic_store(&a, 1);
     }

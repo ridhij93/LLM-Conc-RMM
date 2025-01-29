@@ -19,7 +19,7 @@ void *thread2(void * threadid)
     std::atomic_thread_fence(std::memory_order_seq_cst); //memory barrier
     q = y;
     if (p==1 && q==0)
-	a=1;
+	     a=1;
 }
 
 void *thread3(void * threadid)
@@ -29,7 +29,7 @@ void *thread3(void * threadid)
     std::atomic_thread_fence(std::memory_order_seq_cst); //memory barrier
     r = x;
     if (r==0)
-	b=1;
+	     b=1;
 }
 
 int main()

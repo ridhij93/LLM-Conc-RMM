@@ -1,11 +1,3 @@
-// This file is part of the SV-Benchmarks collection of verification tasks:
-// https://github.com/sosy-lab/sv-benchmarks
-//
-// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
-// SPDX-FileCopyrightText: The CSeq project
-//
-// SPDX-License-Identifier: Apache-2.0
-
 extern void abort(void);
 void assume_abort_if_not(int cond) {
   if(!cond) {abort();}
@@ -57,8 +49,7 @@ int main()
 		sum += array[tid];
 	}
 
-	__VERIFIER_assert(sum == SIGMA);  // <-- wrong, different threads might use the same array offset when writing
-
+	__VERIFIER_assert(sum == SIGMA);  
 	return 0;
 }
 

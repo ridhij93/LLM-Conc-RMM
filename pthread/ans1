@@ -1,0 +1,3957 @@
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2018 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#include <pthread.h>
+
+extern void __VERIFIER_atomic_begin();
+extern void __VERIFIER_atomic_end();
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+int i = 3, j = 6;
+
+#define NUM 20
+#define LIMIT (2*NUM+6)
+
+void *t1(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    i = j + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+void *t2(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    j = i + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  pthread_t id1, id2;
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  __VERIFIER_atomic_begin();
+  int condI = i >= LIMIT;
+  __VERIFIER_atomic_end();
+
+  __VERIFIER_atomic_begin();
+  int condJ = j >= LIMIT;
+  __VERIFIER_atomic_end();
+
+  if (condI || condJ) {
+    ERROR: {reach_error();abort();}
+  }
+
+  return 0;
+}
+
+A potential data race or race condition exists in the given program due to the shared variables `i` and `j` being modified concurrently by the two threads `t1` and `t2` without proper synchronization.
+
+The `__VERIFIER_atomic_begin()` and `__VERIFIER_atomic_end()` functions only ensure atomicity for the enclosed code block but do not provide mutual exclusion for accessing the shared variables `i` and `j` across different threads. This means that both threads can access and modify these variables simultaneously, leading to unpredictable results.
+
+To fix the race condition, you can use mutual exclusion mechanisms like locks or semaphores to ensure that only one thread can access and modify the shared variables at a time.
+
+Here's an example of how to use mutex locks to fix the race condition:
+
+```c
+#include <pthread.h>
+#include <assert.h>
+#include <stdio.h>
+
+void reach_error() { assert(0); }
+
+int i = 3, j = 6;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+#define NUM 20
+#define LIMIT (2*NUM+6)
+
+void *t1(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    pthread_mutex_lock(&lock);
+    i = j + 1;
+    pthread_mutex_unlock(&lock);
+  }
+  pthread_exit(NULL);
+}
+
+void *t2(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    pthread_mutex_lock(&lock);
+    j = i + 1;
+    pthread_mutex_unlock(&lock);
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  pthread_t id1, id2;
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  pthread_mutex_lock(&lock);
+  int condI = i >= LIMIT;
+  pthread_mutex_unlock(&lock);
+
+  pthread_mutex_lock(&lock);
+  int condJ = j >= LIMIT;
+  pthread_mutex_unlock(&lock);
+
+  if (condI || condJ) {
+    ERROR: {reach_error();abort();}
+  }
+
+  return 0;
+}
+```
+
+In this revised code, a mutex lock is initialized, and the threads lock the mutex before accessing the shared variables, ensuring that only one thread can access the shared variables at a time. This prevents the race condition.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+char *v;
+
+void *thread1(void * arg)
+{
+  v = malloc(sizeof(char) * 8);
+  return 0;
+}
+
+void *thread2(void *arg)
+{
+  if (v) strcpy(v, "Bigshot");
+  return 0;
+}
+
+
+int main()
+{
+  pthread_t t1, t2;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_join(t1, 0);
+
+  pthread_create(&t2, 0, thread2, 0);
+  pthread_join(t2, 0);
+
+  __VERIFIER_assert(!v || v[0] == 'B');
+
+  return 0;
+}
+
+
+The provided code does not have a data race or race condition. The reason is that the two threads are not running concurrently.
+
+In the `main` function, `thread1` is created and then immediately joined before `thread2` is created. This means that `thread1` will complete its execution before `thread2` starts. Since `thread1` is responsible for allocating memory for `v`, `thread2` is guaranteed to see the updated value of `v` and will not access uninitialized memory.
+
+Therefore, the assertion `__VERIFIER_assert(!v || v[0] == 'B');` in the `main` function will always hold true. If `v` is not `NULL`, it means `thread1` has executed and allocated memory for `v`. Then `thread2` must have executed and copied the string "Bigshot" into `v`, making `v[0]` equal to 'B'.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 11
+#define TIMES 24 // 2*N+2
+#include "fib_safe.h"
+The provided code is incomplete and does not contain the actual implementation of the `fib_safe` function or any concurrent code that could lead to a data race or race condition. However, I can explain what a data race or race condition is and how it could potentially occur in a program like this.
+
+A data race or race condition occurs when two or more threads access shared data concurrently and at least one of the accesses is a write. This can result in unpredictable and unwanted behavior, as the outcome of the execution depends on the relative timing of the threads.
+
+In the context of the provided code, if the `fib_safe` function was accessing and modifying shared data without proper synchronization (e.g., locks, atomic operations, etc.), it could lead to a data race or race condition. For example, if multiple threads were calling `fib_safe` concurrently and it was incrementing a shared counter, the final value of the counter could be incorrect if the increments were not atomic.
+
+Without seeing the actual implementation of `fib_safe` and how it's being used, it's impossible to say for sure if a data race or race condition exists in this program.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+extern void abort(void);
+void assume_abort_if_not(int cond) {
+  if(!cond) {abort();}
+}
+#include <pthread.h>
+#include <stdio.h>
+
+#define TRUE	  (1)
+#define FALSE	  (0) 
+#define SIZE	  (400)
+#define OVERFLOW  (-1)
+#define UNDERFLOW (-2)
+
+unsigned int __VERIFIER_nondet_uint();
+static int top=0;
+static unsigned int arr[SIZE];
+pthread_mutex_t m;
+_Bool flag=FALSE;
+
+void error(void) 
+{   ERROR: {reach_error();abort();}  return;
+}
+
+void inc_top(void)
+{
+  top++;
+}
+
+void dec_top(void)
+{
+  top--;
+}
+
+int get_top(void)
+{
+  return top;
+}
+
+int stack_empty(void)
+{
+  return (top==0) ? TRUE : FALSE;
+}
+
+int push(unsigned int *stack, int x)
+{
+  if (top==SIZE) 
+  {
+    printf("stack overflow\n");
+    return OVERFLOW;
+  } 
+  else 
+  {
+    stack[get_top()] = x;
+    inc_top();
+  }
+  return 0;
+}
+
+int pop(unsigned int *stack)
+{
+  if (get_top()==0) 
+  {
+    printf("stack underflow\n");	
+    return UNDERFLOW;
+  } 
+  else 
+  {
+    dec_top();
+    return stack[get_top()];  
+  }
+  return 0;
+}
+
+void *t1(void *arg) 
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if (push(arr,tmp)==OVERFLOW)
+      error();
+    flag=TRUE;
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (flag)
+    {
+      if (!(pop(arr)!=UNDERFLOW))
+        error();
+    }
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The provided program uses a mutex to protect shared resources from being simultaneously accessed by multiple threads, which is a good practice to prevent data races. However, there is still a potential race condition in the program due to the use of the `flag` variable.
+
+The `flag` variable is set to `TRUE` in thread `t1` after a successful push operation and is checked in thread `t2` before performing a pop operation. However, the `flag` variable is not protected by the mutex, which means that multiple threads can simultaneously access and modify it, leading to a race condition.
+
+Consider a scenario where thread `t1` has just set `flag` to `TRUE` after a successful push operation, but before it can unlock the mutex, the OS scheduler preempts it and switches to thread `t2`. Thread `t2` sees that `flag` is `TRUE` and performs a pop operation, which could lead to an underflow error if thread `t1` hasn't actually pushed anything onto the stack yet.
+
+To fix this, you should protect the `flag` variable with the same mutex that protects the stack operations. This ensures that the `flag` variable is only accessed and modified when no other thread is accessing or modifying the stack.
+
+Here's an example of how you can modify the `t1` and `t2` functions to protect the `flag` variable with the mutex:
+
+```c
+void *t1(void *arg)
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if (push(arr,tmp)==OVERFLOW)
+      error();
+    flag=TRUE;
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg)
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (flag)
+    {
+      flag = FALSE; // Reset the flag after checking it
+      if (!(pop(arr)!=UNDERFLOW))
+        error();
+    }
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+```
+
+In this modified version, the `flag` variable is only set and checked while the mutex is locked, which prevents race conditions. Also, the `flag` variable is reset to `FALSE` after it is checked in thread `t2`, which ensures that each push operation in thread `t1` corresponds to exactly one pop operation in thread `t2`.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+//#include <assert.h>
+
+#define USAGE "./twostage <param1> <param2>\n"
+
+static int iTThreads = 2;
+static int iRThreads = 1;
+static int data1Value = 0;
+static int data2Value = 0;
+pthread_mutex_t *data1Lock;
+pthread_mutex_t *data2Lock;
+
+void lock(pthread_mutex_t *);
+void unlock(pthread_mutex_t *);
+
+void *funcA(void *param) {
+    pthread_mutex_lock(data1Lock);
+    data1Value = 1;
+    pthread_mutex_unlock(data1Lock);
+
+    pthread_mutex_lock(data2Lock);
+    data2Value = data1Value + 1;
+    pthread_mutex_unlock(data2Lock);
+
+    return NULL;
+}
+
+void *funcB(void *param) {
+    int t1 = -1;
+    int t2 = -1;
+
+    pthread_mutex_lock(data1Lock);
+    if (data1Value == 0) {
+        pthread_mutex_unlock(data1Lock);
+        return NULL;
+    }
+    t1 = data1Value;
+    pthread_mutex_unlock(data1Lock);
+
+    pthread_mutex_lock(data2Lock);
+    t2 = data2Value;
+    pthread_mutex_unlock(data2Lock);
+
+    if (t2 != (t1 + 1)) {
+        fprintf(stderr, "Bug found!\n");
+	ERROR: {reach_error();abort();}
+          ;
+    }
+
+    return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    int i,err;
+
+    if (argc != 1) {
+        if (argc != 3) {
+            fprintf(stderr, USAGE);
+            exit(-1);
+        } else {
+            sscanf(argv[1], "%d", &iTThreads);
+            sscanf(argv[2], "%d", &iRThreads);
+        }
+    }
+
+    data1Lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    data2Lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    if (0 != (err = pthread_mutex_init(data1Lock, NULL))) {
+        fprintf(stderr, "pthread_mutex_init error: %d\n", err);
+        exit(-1);
+    }
+    if (0 != (err = pthread_mutex_init(data2Lock, NULL))) {
+        fprintf(stderr, "pthread_mutex_init error: %d\n", err);
+        exit(-1);
+    }
+
+    pthread_t tPool[iTThreads];
+    pthread_t rPool[iRThreads];
+
+    for (i = 0; i < iTThreads; i++) {
+        if (0 != (err = pthread_create(&tPool[i], NULL, &funcA, NULL))) {
+            fprintf(stderr, "Error [%d] found creating 2stage thread.\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iRThreads; i++) {
+        if (0 != (err = pthread_create(&rPool[i], NULL, &funcB, NULL))) {
+            fprintf(stderr, "Error [%d] found creating read thread.\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iTThreads; i++) {
+        if (0 != (err = pthread_join(tPool[i], NULL))) {
+            fprintf(stderr, "pthread join error: %d\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iRThreads; i++) {
+        if (0 != (err = pthread_join(rPool[i], NULL))) {
+            fprintf(stderr, "pthread join error: %d\n", err);
+            exit(-1);
+        }
+    }
+
+    return 0;
+}
+
+void lock(pthread_mutex_t *lock) {
+    int err;
+    if (0 != (err = pthread_mutex_lock(lock))) {
+        fprintf(stderr, "Got error %d from pthread_mutex_lock.\n", err);
+        exit(-1);
+    }
+}
+
+void unlock(pthread_mutex_t *lock) {
+    int err;
+    if (0 != (err = pthread_mutex_unlock(lock))) {
+        fprintf(stderr, "Got error %d from pthread_mutex_unlock.\n", err);
+        exit(-1);
+    }
+}
+   
+
+The provided code seems to be correctly using mutex locks to prevent data races. The `data1Value` and `data2Value` variables are each protected by their own mutex locks (`data1Lock` and `data2Lock` respectively), which are properly locked and unlocked in both `funcA` and `funcB`.
+
+However, there is a potential issue that could lead to unexpected behavior: the order of operations between threads is not guaranteed. This is not a data race or race condition in the traditional sense, but it could still cause problems.
+
+In particular, the `funcB` thread checks `data1Value` and then `data2Value`, expecting that `data2Value` should always be one greater than `data1Value`. However, if a `funcA` thread were to run between these two checks, it could update `data1Value` and `data2Value` in such a way that this expectation is violated.
+
+Here's a potential sequence of operations that could lead to this issue:
+
+1. `funcA` thread sets `data1Value` to 1.
+2. `funcB` thread checks `data1Value`, finds it to be 1.
+3. `funcA` thread sets `data2Value` to 2.
+4. `funcA` thread sets `data1Value` to 1 again (this could happen if another iteration of `funcA` is running).
+5. `funcB` thread checks `data2Value`, finds it to be 2, but expected it to be 1 + 1 = 2, so it incorrectly reports a bug.
+
+To fix this issue, `funcB` would need to ensure that no `funcA` threads can run between its two checks. This could be done by using a single mutex lock to protect both `data1Value` and `data2Value`, or by using some other form of synchronization to ensure the correct order of operations.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <pthread.h>
+
+pthread_mutex_t  ma, mb;
+int data1, data2;
+
+void * thread1(void * arg)
+{  
+  pthread_mutex_lock(&ma);
+  data1++;
+  pthread_mutex_unlock(&ma);
+
+  pthread_mutex_lock(&ma);
+  data2++;
+  pthread_mutex_unlock(&ma);
+
+  return 0;
+}
+
+
+void * thread2(void * arg)
+{  
+  pthread_mutex_lock(&ma);
+  data1+=5;
+  pthread_mutex_unlock(&ma);
+
+  pthread_mutex_lock(&ma);
+  data2-=6;
+  pthread_mutex_unlock(&ma);
+
+  return 0;
+}
+
+
+int main()
+{
+  pthread_t  t1, t2;
+
+  pthread_mutex_init(&ma, 0);
+  pthread_mutex_init(&mb, 0);
+
+  data1 = 10;
+  data2 = 10;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_create(&t2, 0, thread2, 0);
+  
+  pthread_join(t1, 0);
+  pthread_join(t2, 0);
+
+  if (data1!=16 && data2!=5)
+  {
+    ERROR: {reach_error();abort();}
+      ;    
+  }
+
+  return 0;
+}
+
+
+The provided program does not have a data race or race condition because it uses mutex locks correctly to protect shared resources (data1 and data2) from being accessed concurrently by multiple threads.
+
+Here is the explanation:
+
+1. Both threads, thread1 and thread2, use the same mutex 'ma' to lock and unlock before accessing and modifying 'data1' and 'data2'.
+
+2. When a thread acquires the mutex lock, no other thread can acquire the same lock until it is released. This ensures that only one thread can modify 'data1' or 'data2' at a time.
+
+3. Therefore, there is no possibility of a data race or race condition in this program. The final values of 'data1' and 'data2' will always be 16 and 5, respectively, regardless of the order in which the threads are executed.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 6
+#define TIMES 14 // 2*N+2
+#include "fib_unsafe.h"
+The provided code is incomplete and does not contain the actual implementation of the `fib_unsafe` function or any concurrent code that could potentially lead to a data race or race condition.
+
+However, I can explain what data races and race conditions are and how they can occur in concurrent programming.
+
+A data race occurs when two or more threads access the same shared variable simultaneously, and at least one of them is a write operation. This can result in unpredictable and unreproducible behavior as the outcome depends on the thread scheduling by the operating system.
+
+A race condition is a type of software bug that occurs when the behavior of an electronic or software system depends on the sequence or timing of other uncontrollable events. It becomes a problem when events do not happen in the order the programmer intended.
+
+To prevent data races and race conditions, you can use synchronization mechanisms such as locks, semaphores, or atomic operations to ensure that only one thread can access a shared variable at a time.
+
+In the context of the provided code, if the `fib_unsafe` function or any other part of the code involves concurrent access to shared variables without proper synchronization, there could be a potential data race or race condition. However, without seeing the actual implementation, it's impossible to identify any specific issues.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdio.h> 
+#include <pthread.h>
+
+int  num;
+
+pthread_mutex_t  m;
+pthread_cond_t  empty, full;
+
+void * thread1(void * arg)
+{
+  pthread_mutex_lock(&m);
+
+  while (num > 0) 
+    pthread_cond_wait(&empty, &m);
+  
+  num++;
+
+  pthread_mutex_unlock(&m);
+  pthread_cond_signal(&full);
+
+  return 0;
+}
+
+
+void * thread2(void * arg)
+{
+  pthread_mutex_lock(&m);
+
+  while (num == 0) 
+    pthread_cond_wait(&full, &m);
+
+  num--;
+  
+  pthread_mutex_unlock(&m);
+
+  pthread_cond_signal(&empty);
+
+  return 0;
+}
+
+
+int main()
+{
+  pthread_t  t1, t2;
+
+  num = 1;
+
+  pthread_mutex_init(&m, 0);
+  pthread_cond_init(&empty, 0);
+  pthread_cond_init(&full, 0);
+  
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_create(&t2, 0, thread2, 0);
+  
+  pthread_join(t1, 0);
+  pthread_join(t2, 0);
+
+  if (num!=1)
+  {
+    ERROR: {reach_error();abort();}
+    ;
+  }
+
+  return 0;
+  
+}
+
+The program you've shared is a classic example of a producer-consumer problem, where `thread1` is the producer and `thread2` is the consumer. They are synchronized using mutex and condition variables `empty` and `full`.
+
+At first glance, the code seems to be correctly synchronized, and there are no obvious data races or race conditions. The mutex `m` is used to protect the shared variable `num`, and the condition variables `empty` and `full` are used to signal between the threads when `num` is either 0 or greater than 0.
+
+However, there is a potential issue that could lead to a race condition. The issue is that the signals to the condition variables are sent after the mutex is unlocked. This means that if `thread1` signals `full` and then `thread2` is scheduled to run, `thread2` could consume the item (decrement `num`) and then signal `empty` before `thread1` has a chance to produce another item. This could result in `thread1` waiting indefinitely on `empty`, even though `thread2` is also waiting on `full`.
+
+To avoid this, the signals to the condition variables should be sent before the mutex is unlocked. This ensures that the thread that is signaled can immediately acquire the mutex and proceed, preventing the other thread from potentially getting stuck.
+
+Here's how you could modify `thread1` and `thread2` to avoid this race condition:
+
+```c
+void * thread1(void * arg)
+{
+  pthread_mutex_lock(&m);
+
+  while (num > 0)
+    pthread_cond_wait(&empty, &m);
+
+  num++;
+
+  pthread_cond_signal(&full);
+  pthread_mutex_unlock(&m);
+
+  return 0;
+}
+
+void * thread2(void * arg)
+{
+  pthread_mutex_lock(&m);
+
+  while (num == 0)
+    pthread_cond_wait(&full, &m);
+
+  num--;
+
+  pthread_cond_signal(&empty);
+  pthread_mutex_unlock(&m);
+
+  return 0;
+}
+```
+
+This way, the thread that is signaled can immediately acquire the mutex and proceed, preventing the other thread from potentially getting stuck.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+extern void __assert_fail(const char *, const char *, unsigned int, const char *) __attribute__ ((__nothrow__ , __leaf__)) __attribute__ ((__noreturn__));
+void reach_error() { __assert_fail("0", "reorder_5.c", 3, "reach_error"); }
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
+
+static int iSet = 4;
+static int iCheck = 1;
+
+static int a = 0;
+static int b = 0;
+
+void __ESBMC_yield();
+
+void *setThread(void *param);
+void *checkThread(void *param);
+void set();
+int check();
+
+int main(int argc, char *argv[]) {
+    int i, err;
+
+    if (argc != 1) {
+        if (argc != 3) {
+            fprintf(stderr, "./reorder <param1> <param2>\n");
+            exit(-1);
+        } else {
+            sscanf(argv[1], "%d", &iSet);
+            sscanf(argv[2], "%d", &iCheck);
+        }
+    }
+
+    pthread_t setPool[iSet];
+    pthread_t checkPool[iCheck];
+
+    for (i = 0; i < iSet; i++) {
+        if (0 != (err = pthread_create(&setPool[i], ((void *)0), &setThread, ((void *)0)))) {
+            fprintf(stderr, "Error [%d] found creating set thread.\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iCheck; i++) {
+        if (0 != (err = pthread_create(&checkPool[i], ((void *)0), &checkThread,
+                                       ((void *)0)))) {
+            fprintf(stderr, "Error [%d] found creating check thread.\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iSet; i++) {
+        if (0 != (err = pthread_join(setPool[i], ((void *)0)))) {
+            fprintf(stderr, "pthread join error: %d\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iCheck; i++) {
+        if (0 != (err = pthread_join(checkPool[i], ((void *)0)))) {
+            fprintf(stderr, "pthread join error: %d\n", err);
+            exit(-1);
+        }
+    }
+
+    return 0;
+}
+
+void *setThread(void *param) {
+    a = 1;
+    b = -1;
+
+    return ((void *)0);
+}
+
+void *checkThread(void *param) {
+    if (! ((a == 0 && b == 0) || (a == 1 && b == -1))) {
+        fprintf(stderr, "Bug found!\n");
+        ERROR: {reach_error();abort();}
+    }
+
+    return ((void *)0);
+}
+
+Yes, there is a potential data race or race condition in the provided program. The data race occurs due to the unprotected access to the shared variables `a` and `b` in the `setThread` and `checkThread` functions. Both functions access these shared variables without any synchronization mechanism, which can lead to unexpected behavior.
+
+In the `setThread` function, the variables `a` and `b` are being modified:
+
+```c
+void *setThread(void *param) {
+    a = 1;
+    b = -1;
+    return ((void *)0);
+}
+```
+
+While in the `checkThread` function, the variables `a` and `b` are being read:
+
+```c
+void *checkThread(void *param) {
+    if (! ((a == 0 && b == 0) || (a == 1 && b == -1))) {
+        fprintf(stderr, "Bug found!\n");
+        ERROR: {reach_error();abort();}
+    }
+    return ((void *)0);
+}
+```
+
+To avoid the data race, you can use synchronization mechanisms like mutex locks, semaphores, or atomic operations to ensure that only one thread can access the shared variables at a time.
+
+For example, using mutex locks in C (`pthread_mutex_t`), you can protect the shared variables as follows:
+
+1. First, define a mutex lock at the beginning of the program:
+
+```c
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+```
+
+2. In the `setThread` function, lock the mutex before modifying the shared variables and unlock it after:
+
+```c
+void *setThread(void *param) {
+    pthread_mutex_lock(&mutex);
+    a = 1;
+    b = -1;
+    pthread_mutex_unlock(&mutex);
+    return ((void *)0);
+}
+```
+
+3. In the `checkThread` function, lock the mutex before reading the shared variables and unlock it after:
+
+```c
+void *checkThread(void *param) {
+    pthread_mutex_lock(&mutex);
+    if (! ((a == 0 && b == 0) || (a == 1 && b == -1))) {
+        fprintf(stderr, "Bug found!\n");
+        ERROR: {reach_error();abort();}
+    }
+    pthread_mutex_unlock(&mutex);
+    return ((void *)0);
+}
+```
+
+This way, you can ensure that only one thread can access the shared variables `a` and `b` at a time, preventing the data race or race condition.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+char *v;
+
+void *thread1(void * arg)
+{
+  v = malloc(sizeof(char) * 8);
+  return 0;
+}
+
+void *thread2(void *arg)
+{
+  if (v) strcpy(v, "Bigshot");
+  return 0;
+}
+
+
+int main()
+{
+  pthread_t t1, t2;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_join(t1, 0);
+
+  pthread_create(&t2, 0, thread2, 0);
+  pthread_join(t2, 0);
+
+  __VERIFIER_assert(v[0] == 'B');  // <---- wrong, malloc() can fail and therefore no strcpy! Competition's rule: malloc() never fails, thus it is safe.
+
+  return 0;
+}
+
+
+The program you've shared appears to be thread-safe at first glance because it creates and joins threads one after the other. This means that `thread1` completes its execution before `thread2` starts, which should prevent any data races.
+
+However, there is a potential issue that could lead to unexpected behavior, although it's not a classic race condition. In `thread1`, memory is allocated for `v` using `malloc`. If `malloc` fails to allocate memory (which is rare but can happen if there's not enough memory available), it returns `NULL`. In this case, `v` would be `NULL` when `thread2` starts.
+
+In `thread2`, there's no check for `v` being `NULL` before calling `strcpy(v, "Bigshot")`. This means if `v` is `NULL`, `thread2` will attempt to dereference a `NULL` pointer, leading to undefined behavior, which could cause the program to crash.
+
+The assertion in `main` assumes that `v[0]` is always `'B'`, but if `malloc` fails and `thread2` doesn't execute `strcpy`, this assertion will fail.
+
+To fix this, you could add a check for `v` being `NULL` in `thread2` before calling `strcpy`, and handle this case appropriately. You might also want to add error checking for `malloc` in `thread1`.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+#define USAGE "./reorder <param1> <param2>\n"
+
+static int iSet = 2;
+static int iCheck = 2;
+
+static int a = 0;
+static int b = 0;
+
+void *setThread(void *param);
+void *checkThread(void *param);
+void set();
+int check();
+
+int main(int argc, char *argv[]) {
+    int i, err;
+
+    if (argc != 1) {
+        if (argc != 3) {
+            fprintf(stderr, USAGE);
+            exit(-1);
+        } else {
+            sscanf(argv[1], "%d", &iSet);
+            sscanf(argv[2], "%d", &iCheck);
+        }
+    }
+
+    //printf("iSet = %d\niCheck = %d\n", iSet, iCheck);
+
+    pthread_t setPool[iSet];
+    pthread_t checkPool[iCheck];
+
+    for (i = 0; i < iSet; i++) {
+        if (0 != (err = pthread_create(&setPool[i], NULL, &setThread, NULL))) {
+            fprintf(stderr, "Error [%d] found creating set thread.\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iCheck; i++) {
+        if (0 != (err = pthread_create(&checkPool[i], NULL, &checkThread,
+                                       NULL))) {
+            fprintf(stderr, "Error [%d] found creating check thread.\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iSet; i++) {
+        if (0 != (err = pthread_join(setPool[i], NULL))) {
+            fprintf(stderr, "pthread join error: %d\n", err);
+            exit(-1);
+        }
+    }
+
+    for (i = 0; i < iCheck; i++) {
+        if (0 != (err = pthread_join(checkPool[i], NULL))) {
+            fprintf(stderr, "pthread join error: %d\n", err);
+            exit(-1);
+        }
+    }
+
+    return 0;
+}
+        
+void *setThread(void *param) {
+    a = 1;
+    b = -1;
+
+    return NULL;
+}
+
+void *checkThread(void *param) {
+    if (! ((a == 0 && b == 0) || (a == 1 && b == -1))) {
+        fprintf(stderr, "Bug found!\n");
+    	ERROR: {reach_error();abort();}
+    }
+
+    return NULL;
+}
+
+
+The given program contains a potential data race or race condition. This is because multiple threads are accessing and modifying the shared variables `a` and `b` without any synchronization mechanism like mutexes or atomic operations.
+
+In the `setThread` function, the variables `a` and `b` are being modified. Meanwhile, in the `checkThread` function, the same variables `a` and `b` are being read for a condition check.
+
+If the `checkThread` function is executed while one `setThread` function has updated `a` but not yet updated `b`, or vice versa, the condition in the `checkThread` function would fail, leading to the "Bug found!" message and the program reaching an error state.
+
+To avoid this race condition, you could use mutexes to ensure that only one thread can access the shared variables at a time, or use atomic operations to ensure that the updates to `a` and `b` are indivisible.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 7
+#define TIMES 16 // 2*N+2
+#include "fib_safe.h"
+The provided code is incomplete and does not contain the actual implementation of the `fib_safe.h` header file. However, I can still provide some general advice on identifying data races or race conditions.
+
+A data race or race condition typically occurs in multithreaded programming when two or more threads access shared data concurrently and at least one of the accesses is a write operation. The result of such a situation is dependent on the thread scheduling algorithm, which can lead to unpredictable and incorrect program behavior.
+
+To identify potential data races or race conditions in the provided code, look for the following:
+
+1. Shared data: Identify any variables or data structures that are accessed by multiple threads. In the provided code snippet, there are no visible shared variables or data structures, but they might be present in the `fib_safe.h` header file.
+2. Concurrent access: Check if multiple threads are accessing the shared data concurrently. This can be determined by examining the thread creation and synchronization mechanisms used in the code. In the given code, there are no visible threads, but they might be present in the included header file.
+3. Conflicting operations: Determine if any of the concurrent accesses involve both read and write operations on the shared data. If there are, then there is a potential data race or race condition.
+
+To resolve data races or race conditions, you can use synchronization mechanisms such as locks, atomic operations, or barriers to ensure that only one thread can access the shared data at a time.
+
+Since the provided code is incomplete, I can't give a definitive answer on whether there is a data race or race condition. However, if you provide the contents of the `fib_safe.h` header file, I would be happy to help you further.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+
+#define SIZE  128
+#define MAX   4
+#define NUM_THREADS  13
+
+int table[SIZE];
+pthread_mutex_t  cas_mutex[SIZE];
+
+pthread_t  tids[NUM_THREADS];
+
+
+int cas(int * tab, int h, int val, int new_val)
+{
+  int ret_val = 0;
+  pthread_mutex_lock(&cas_mutex[h]);
+  
+ 
+  if ( tab[h] == val ) {
+    tab[h] = new_val;
+    ret_val = 1;
+  }
+
+  pthread_mutex_unlock(&cas_mutex[h]);
+
+  
+  return ret_val;
+} 
+
+
+
+void * thread_routine(void * arg)
+{
+  int tid;
+  int m = 0, w, h;
+  tid = *((int *)arg);
+  
+  while(1){
+    if ( m < MAX ){
+      w = (++m) * 11 + tid;
+    }
+    else{
+      pthread_exit(NULL);
+    }
+    
+    h = (w * 7) % SIZE;
+    
+    if (h<0)
+    {
+      ERROR: {reach_error();abort();}
+      ;
+    }
+
+    while ( cas(table, h, 0, w) == 0){
+      h = (h+1) % SIZE;
+    }
+  }
+
+}
+
+
+int main()
+{
+  int i, arg;
+
+  for (i = 0; i < SIZE; i++)
+    pthread_mutex_init(&cas_mutex[i], NULL);
+
+  for (i = 0; i < NUM_THREADS; i++){
+    arg=i;
+    pthread_create(&tids[i], NULL,  thread_routine, &arg);
+  }
+
+  for (i = 0; i < NUM_THREADS; i++){
+    pthread_join(tids[i], NULL);
+  }
+
+  for (i = 0; i < SIZE; i++){
+    pthread_mutex_destroy(&cas_mutex[i]);
+  }
+
+}
+
+The given program appears to be thread-safe and free from data races or race conditions. The `cas()` function uses a mutex lock to ensure that only one thread can modify the `table` array at a given index `h` at any given time. This prevents any potential data races or race conditions from occurring when multiple threads try to access and modify the same location in the `table` array concurrently.
+
+Additionally, the `thread_routine()` function ensures that each thread only performs a maximum of `MAX` (which is defined as 4) writes to the `table` array before exiting. This limits the number of concurrent writes to the `table` array at any given time, further reducing the likelihood of data races or race conditions.
+
+Therefore, based on the provided code, there does not appear to be any potential data races or race conditions.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 11
+#define TIMES 24 // 2*N+2
+#include "fib_unsafe.h"
+The provided code is incomplete and does not compile, as it does not include the necessary header files and the implementation of the `fib_unsafe` function. However, I can still provide some general advice on identifying potential data races or race conditions in the code.
+
+A data race or race condition occurs when two or more threads access the same shared data concurrently, and at least one of the accesses is a write. In the provided code, there is no explicit thread creation or synchronization mechanism, so it is not possible to identify any data races or race conditions.
+
+However, if we assume that the `fib_unsafe` function is called from multiple threads concurrently and it accesses shared data without proper synchronization, then there is a potential for data races or race conditions. For example, if the `fib_unsafe` function updates a global variable or a shared data structure without using atomic operations or locks, then multiple threads could access and modify the same data simultaneously, leading to undefined behavior.
+
+To avoid data races or race conditions, it is important to use synchronization mechanisms such as mutexes, atomic operations, or condition variables to ensure that only one thread can access and modify the shared data at a time. Additionally, it is important to ensure that all threads access the shared data consistently, i.e., they all see the same value of the shared data at the same time. This can be achieved by using memory barriers or fences to enforce ordering constraints on memory accesses.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern int __VERIFIER_nondet_int(void);
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+#include <pthread.h>
+#include <stdio.h>
+#include <assert.h>
+
+#define SIZE	(400)
+#define EMPTY	(-1)
+#define FULL	(-2)
+#define FALSE	(0)
+#define TRUE	(1)
+
+typedef struct {
+  int element[SIZE];
+  int head;
+  int tail;
+  int amount;
+} QType;
+
+pthread_mutex_t m;
+int __VERIFIER_nondet_int();
+int stored_elements[SIZE];
+_Bool enqueue_flag, dequeue_flag;
+QType queue;
+
+void init(QType *q)
+{
+  q->head=0;
+  q->tail=0;
+  q->amount=0;
+}
+
+int empty(QType * q) 
+{
+  if (q->head == q->tail) 
+  { 
+    printf("queue is empty\n");
+    return EMPTY;
+  }
+  else 
+    return 0;
+}
+
+int full(QType * q) 
+{
+  if (q->amount == SIZE) 
+  {  
+    printf("queue is full\n");
+    return FULL;
+  } 
+  else
+    return 0;
+}
+
+int enqueue(QType *q, int x) 
+{
+  q->element[q->tail] = x;
+  q->amount++;
+  if (q->tail == SIZE) 
+  {
+    q->tail = 1;
+  } 
+  else 
+  {
+    q->tail++;
+  }
+
+  return 0;
+}
+
+int dequeue(QType *q) 
+{
+  int x;
+
+  x = q->element[q->head];
+  q->amount--;
+  if (q->head == SIZE) 
+  {
+    q->head = 1;
+  } 
+  else 
+    q->head++;
+
+  return x;
+}
+
+void *t1(void *arg) 
+{
+  int value, i;
+
+  pthread_mutex_lock(&m);
+  if (enqueue_flag)
+  {
+    for(i=0; i<SIZE; i++)  
+    {
+      value = __VERIFIER_nondet_int();
+      enqueue(&queue,value);
+      stored_elements[i]=value;
+    }
+    enqueue_flag=FALSE;
+    dequeue_flag=TRUE;
+  }	
+  pthread_mutex_unlock(&m);
+
+  return NULL;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  pthread_mutex_lock(&m);
+  if (dequeue_flag)
+  {
+    for(i=0; i<SIZE; i++)  
+    {
+      if (empty(&queue)!=EMPTY)
+        if (!dequeue(&queue)==stored_elements[i]) {
+			ERROR:{reach_error();abort();}
+        }
+    }
+    dequeue_flag=FALSE;
+    enqueue_flag=TRUE;
+  }
+  pthread_mutex_unlock(&m);
+
+  return NULL;
+}
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  enqueue_flag=TRUE;
+  dequeue_flag=FALSE;
+
+  init(&queue);
+
+  if (!empty(&queue)==EMPTY) {
+	ERROR:{reach_error();abort();}
+  }
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, &queue);
+  pthread_create(&id2, NULL, t2, &queue);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The program you've provided is a multi-threaded implementation of a circular queue. It appears to be correctly using a mutex lock to protect the shared resource (the queue) from being simultaneously accessed by multiple threads, which is a common cause of race conditions.
+
+However, there is a potential issue in the logic of the program that could lead to a race condition. The `enqueue_flag` and `dequeue_flag` variables are shared between threads and are used to determine whether a thread should enqueue or dequeue elements from the queue. These variables are not protected by a mutex, which means that multiple threads could potentially read and write to them at the same time.
+
+For example, consider the following scenario:
+
+1. Thread 1 checks `enqueue_flag` and finds it to be true, so it enters the if statement to start enqueuing elements.
+2. Before Thread 1 has a chance to set `enqueue_flag` to false, the operating system switches to Thread 2.
+3. Thread 2 checks `enqueue_flag` and also finds it to be true, so it also enters the if statement to start enqueuing elements.
+
+This scenario would result in both threads simultaneously enqueuing elements to the queue, which could lead to unexpected behavior or a crash. To fix this issue, you should protect access to `enqueue_flag` and `dequeue_flag` with a mutex, just like you do with the queue itself.
+
+Additionally, the program does not check for the full condition before enqueuing an element. This could potentially lead to buffer overflow if the queue is full and still the enqueue operation is performed.
+
+Lastly, the program does not check for the empty condition before dequeuing an element. This could potentially lead to undefined behavior if the queue is empty and still the dequeue operation is performed.
+
+So, it's recommended to add these checks to avoid potential errors.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+char *v;
+
+void *thread1(void * arg)
+{
+  v = calloc(8, sizeof(char));
+  return 0;
+}
+
+void *thread2(void *arg)
+{
+  if (v) strcpy(v, "Bigshot");
+  return 0;
+}
+
+
+int main()
+{
+  pthread_t t1, t2;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_create(&t2, 0, thread2, 0);
+  pthread_join(t1, 0);
+  pthread_join(t2, 0);
+
+  __VERIFIER_assert(!v || v[0] == 'B');
+
+  return 0;
+}
+
+
+Yes, there is a potential race condition in the given program. The race condition occurs due to the uncontrolled access to the shared variable `v` by both threads `thread1` and `thread2`.
+
+In `thread1`, the variable `v` is assigned the result of `calloc(8, sizeof(char))`. Meanwhile, in `thread2`, the value of `v` is checked, and if it's not `NULL`, the string "Bigshot" is copied to the memory pointed by `v` using `strcpy`.
+
+The problem arises when `thread2` is scheduled to run before `thread1`, causing `thread2` to access `v` while it's still uninitialized or not yet allocated by `thread1`. In this case, the behavior of the program is undefined, and it may lead to unexpected results or crashes.
+
+To fix this race condition, you can use synchronization mechanisms such as mutex locks to ensure that `thread2` waits until `thread1` has finished initializing `v`. Alternatively, you can guarantee that `thread1` runs and completes before `thread2` starts by joining `thread1` before creating `thread2`.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+extern void abort(void);
+void assume_abort_if_not(int cond) {
+  if(!cond) {abort();}
+}
+#include <pthread.h>
+#include <stdio.h>
+
+#define TRUE	  (1)
+#define FALSE	  (0) 
+#define SIZE	  (5)
+#define OVERFLOW  (-1)
+#define UNDERFLOW (-2)
+
+unsigned int __VERIFIER_nondet_uint();
+static int top=0;
+static unsigned int arr[SIZE];
+pthread_mutex_t m;
+_Bool flag=FALSE;
+
+void error(void) 
+{ 
+  ERROR: {reach_error();abort();}
+  return;
+}
+
+void inc_top(void)
+{
+  top++;
+}
+
+void dec_top(void)
+{
+  top--;
+}
+
+int get_top(void)
+{
+  return top;
+}
+
+int stack_empty(void)
+{
+  return (top==0) ? TRUE : FALSE;
+}
+
+int push(unsigned int *stack, int x)
+{
+  if (top==SIZE) 
+  {
+    printf("stack overflow\n");
+    return OVERFLOW;
+  } 
+  else 
+  {
+    stack[get_top()] = x;
+    inc_top();
+  }
+  return 0;
+}
+
+int pop(unsigned int *stack)
+{
+  if (top==0) 
+  {
+    printf("stack underflow\n");	
+    return UNDERFLOW;
+  } 
+  else 
+  {
+    dec_top();
+    return stack[get_top()];  
+  }
+  return 0;
+}
+
+void *t1(void *arg) 
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);   
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if ((push(arr,tmp)==OVERFLOW))
+      error();
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (top>0)
+    {    
+      if ((pop(arr)==UNDERFLOW))
+        error();
+    }    
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The given program appears to be thread-safe at first glance due to the use of mutex locks in the critical sections of the code. However, there is a potential race condition that can lead to a data race.
+
+The race condition exists in the `push()` and `pop()` functions, specifically in the `inc_top()` and `dec_top()` functions which modify the shared variable `top`. Although the mutex locks are used in the `t1` and `t2` functions, they are not used in the `inc_top()`, `dec_top()`, and `get_top()` functions. This can lead to a situation where one thread is modifying the `top` variable while another thread is reading or writing to it.
+
+For example, consider the following scenario:
+
+1. Thread 1 calls `push()` and checks that `top != SIZE`.
+2. Context switch occurs, and Thread 2 calls `push()` and also checks that `top != SIZE`.
+3. Thread 1 resumes and increments `top` in `inc_top()`.
+4. Thread 2 resumes and increments `top` in `inc_top()`.
+
+In this scenario, both Thread 1 and Thread 2 have incremented `top` beyond its valid range, leading to a buffer overflow.
+
+To fix this issue, you should protect the `inc_top()`, `dec_top()`, and `get_top()` functions with mutex locks as well. This ensures that only one thread can modify the `top` variable at a time, preventing any race conditions.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern int __VERIFIER_nondet_int(void);
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+#include <pthread.h>
+#include <stdio.h>
+#include <assert.h>
+
+#define SIZE	(400)
+#define EMPTY	(-1)
+#define FULL	(-2)
+#define FALSE	(0)
+#define TRUE	(1)
+
+typedef struct {
+    int element[SIZE];
+    int head;
+    int tail;
+    int amount;
+} QType;
+
+pthread_mutex_t m;
+int __VERIFIER_nondet_int();
+int stored_elements[SIZE];
+_Bool enqueue_flag, dequeue_flag;
+QType queue;
+
+void init(QType *q)
+{
+  q->head=0;
+  q->tail=0;
+  q->amount=0;
+}
+
+int empty(QType * q) 
+{
+  if (q->head == q->tail) 
+  { 
+    printf("queue is empty\n");
+    return EMPTY;
+  }
+  else 
+    return 0;
+}
+
+int full(QType * q) 
+{
+  if (q->amount == SIZE) 
+  {  
+	printf("queue is full\n");
+	return FULL;
+  } 
+  else
+    return 0;
+}
+
+int enqueue(QType *q, int x) 
+{
+  q->element[q->tail] = x;
+  q->amount++;
+  if (q->tail == SIZE) 
+  {
+    q->tail = 1;
+  } 
+  else 
+  {
+    q->tail++;
+  }
+
+  return 0;
+}
+
+int dequeue(QType *q) 
+{
+  int x;
+
+  x = q->element[q->head];
+  q->amount--;
+  if (q->head == SIZE) 
+  {
+    q->head = 1;
+  } 
+  else 
+    q->head++;
+
+  return x;
+}
+
+void *t1(void *arg) 
+{
+  int value, i;
+
+  pthread_mutex_lock(&m);
+  value = __VERIFIER_nondet_int();
+  if (enqueue(&queue,value)) {
+    goto ERROR;
+  }
+
+  stored_elements[0]=value;
+  if (empty(&queue)) {
+    goto ERROR;
+  }
+
+  pthread_mutex_unlock(&m);
+
+  for(i=0; i<(SIZE-1); i++)  
+  {
+    pthread_mutex_lock(&m);
+    if (enqueue_flag)
+    {
+      value = __VERIFIER_nondet_int();
+      enqueue(&queue,value);
+      stored_elements[i+1]=value;
+      enqueue_flag=FALSE;
+      dequeue_flag=TRUE;
+    }
+    pthread_mutex_unlock(&m);
+  }	
+
+  return NULL;
+
+  ERROR:{reach_error();abort();}
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)  
+  {
+    pthread_mutex_lock(&m);
+    if (dequeue_flag)
+    {
+      if (!dequeue(&queue)==stored_elements[i]) {
+        ERROR:{reach_error();abort();}
+      }
+      dequeue_flag=FALSE;
+      enqueue_flag=TRUE;
+    }
+    pthread_mutex_unlock(&m);
+  }
+
+  return NULL;
+}
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  enqueue_flag=TRUE;
+  dequeue_flag=FALSE;
+
+  init(&queue);
+
+  if (!empty(&queue)==EMPTY) {
+    ERROR:{reach_error();abort();}
+  }
+
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, &queue);
+  pthread_create(&id2, NULL, t2, &queue);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The given program uses a mutex to protect shared resources from being simultaneously accessed by multiple threads, which is a good practice to avoid data races. However, there is still a potential race condition in this program.
+
+The race condition exists due to the use of `enqueue_flag` and `dequeue_flag` variables. These variables are shared between threads and are used to control the flow of execution in the `t1` and `t2` functions. However, they are not protected by any synchronization mechanism, such as a mutex.
+
+In the `t1` function, the `enqueue_flag` is set to `FALSE` and `dequeue_flag` is set to `TRUE` after enqueuing an element. Similarly, in the `t2` function, the `dequeue_flag` is set to `FALSE` and `enqueue_flag` is set to `TRUE` after dequeuing an element. If the context switch happens just after these operations in one thread and before the other thread checks these flags, it can lead to unexpected behavior, as both threads might end up either enqueuing or dequeuing at the same time.
+
+To avoid this race condition, you should protect the access to `enqueue_flag` and `dequeue_flag` variables with a mutex or use atomic operations. This ensures that only one thread can modify these variables at a time, preventing any unexpected behavior due to simultaneous access.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 12
+#define TIMES 26 // 2*N+2
+#include "fib_safe.h"
+The provided code snippet is incomplete and does not contain the actual implementation of the `fib_safe.h` header file. However, I can provide some general advice on identifying data races or race conditions.
+
+A data race or race condition occurs when two or more threads access shared data simultaneously and at least one of the threads modifies the data. This can lead to unpredictable and undefined behavior.
+
+In order to identify potential data races or race conditions, you should look for the following:
+
+1. Shared data: Variables that are accessed by multiple threads. In the provided code snippet, it's unclear which variables are shared as the actual implementation is missing.
+2. Concurrent access: Threads accessing the shared data at the same time. This can be checked by examining the thread creation and synchronization mechanisms in the code.
+3. At least one modification: At least one thread must modify the shared data. Read-only access to shared data does not cause data races.
+
+To resolve data races or race conditions, you can use synchronization mechanisms like mutexes, semaphores, or atomic operations to ensure that only one thread can access the shared data at a time.
+
+Without the actual implementation of the `fib_safe.h` header file and the code using it, it's impossible to identify specific data races or race conditions in the provided code snippet.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2018 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#include <pthread.h>
+
+extern void __VERIFIER_atomic_begin();
+extern void __VERIFIER_atomic_end();
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+int i = 3, j = 6;
+
+#define NUM 10
+#define LIMIT (2*NUM+6)
+
+void *t1(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    i = j + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+void *t2(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    j = i + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  pthread_t id1, id2;
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  __VERIFIER_atomic_begin();
+  int condI = i > LIMIT;
+  __VERIFIER_atomic_end();
+
+  __VERIFIER_atomic_begin();
+  int condJ = j > LIMIT;
+  __VERIFIER_atomic_end();
+
+  if (condI || condJ) {
+    ERROR: {reach_error();abort();}
+  }
+
+  return 0;
+}
+
+Yes, there is a potential race condition in the given program. The race condition arises from the unprotected access to the shared variables `i` and `j` in the two threads `t1` and `t2`.
+
+In thread `t1`, the value of `j` is read and then assigned to `i` with an increment of 1. Similarly, in thread `t2`, the value of `i` is read and then assigned to `j` with an increment of 1. The access to `i` and `j` is not synchronized between the threads, which means that both threads could read and write to these variables concurrently, leading to unpredictable behavior.
+
+For example, consider the following scenario:
+
+1. Thread `t1` reads the value of `j` (which is 6).
+2. Thread `t2` reads the value of `i` (which is 3).
+3. Thread `t1` writes the value of `j + 1` to `i` (making `i` equal to 7).
+4. Thread `t2` writes the value of `i + 1` to `j` (making `j` equal to 4).
+
+In this scenario, the expected behavior of the program (incrementing `i` and `j` alternately) is violated, and the values of `i` and `j` are not updated correctly. This kind of unpredictable behavior can lead to bugs that are hard to detect and fix.
+
+To avoid this race condition, you could use synchronization mechanisms such as mutex locks to protect the access to the shared variables `i` and `j`. This would ensure that only one thread can access these variables at a time, preventing concurrent reads and writes.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern int __VERIFIER_nondet_int(void);
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <pthread.h>
+#include <stdio.h>
+#include <assert.h>
+
+#define SIZE	(20)
+#define EMPTY	(-1)
+#define FULL	(-2)
+#define FALSE	(0)
+#define TRUE	(1)
+
+typedef struct {
+  int element[SIZE];
+  int head;
+  int tail;
+  int amount;
+} QType;
+
+pthread_mutex_t m;
+int __VERIFIER_nondet_int();
+int stored_elements[SIZE];
+_Bool enqueue_flag, dequeue_flag;
+QType queue;
+
+void init(QType *q)
+{
+  q->head=0;
+  q->tail=0;
+  q->amount=0;
+}
+
+int empty(QType * q) 
+{
+  if (q->head == q->tail) 
+  { 
+    printf("queue is empty\n");
+    return EMPTY;
+  }
+  else 
+    return 0;
+}
+
+int full(QType * q) 
+{
+  if (q->amount == SIZE) 
+  {  
+    printf("queue is full\n");
+    return FULL;
+  } 
+  else
+    return 0;
+}
+
+int enqueue(QType *q, int x) 
+{
+  q->element[q->tail] = x;
+  q->amount++;
+  if (q->tail == SIZE) 
+  {
+    q->tail = 1;
+  } 
+  else 
+  {
+    q->tail++;
+  }
+
+  return 0;
+}
+
+int dequeue(QType *q) 
+{
+  int x;
+
+  x = q->element[q->head];
+  q->amount--;
+  if (q->head == SIZE) 
+  {
+    q->head = 1;
+  } 
+  else 
+    q->head++;
+
+  return x;
+}
+
+void *t1(void *arg) 
+{
+  int value, i;
+
+  pthread_mutex_lock(&m);
+  if (enqueue_flag)
+  {
+    for(i=0; i<SIZE; i++)  
+    {
+      value = __VERIFIER_nondet_int();
+      enqueue(&queue,value);
+      stored_elements[i]=value;
+    }
+    enqueue_flag=FALSE;
+    dequeue_flag=TRUE;
+  }	
+  pthread_mutex_unlock(&m);
+
+  return NULL;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  pthread_mutex_lock(&m);
+  if (dequeue_flag)
+  {
+    for(i=0; i<SIZE; i++)  
+    {
+      if (empty(&queue)!=EMPTY)
+        if (!dequeue(&queue)==stored_elements[i]) {
+          ERROR: {reach_error();abort();}
+        }
+    }
+    dequeue_flag=FALSE;
+    enqueue_flag=TRUE;
+  }
+  pthread_mutex_unlock(&m);
+
+  return NULL;
+}
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  enqueue_flag=TRUE;
+  dequeue_flag=FALSE;
+
+  init(&queue);
+
+  if (!empty(&queue)==EMPTY) {
+    ERROR: {reach_error();abort();}
+  }
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, &queue);
+  pthread_create(&id2, NULL, t2, &queue);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The program you've shared is a multi-threaded implementation of a circular queue. It appears to be correctly using a mutex to protect the shared resource (the queue) from being simultaneously accessed by multiple threads, which is a common cause of race conditions.
+
+However, there's a potential issue that could lead to a race condition. The `enqueue_flag` and `dequeue_flag` variables are shared between threads and used to determine whether a thread should enqueue or dequeue elements from the queue. These variables are not protected by a mutex when they are being read or written to.
+
+Consider a scenario where both threads have just started, and `enqueue_flag` is `TRUE`. The first thread checks this flag, sees that it's `TRUE`, and starts enqueuing elements. Before it can set `enqueue_flag` to `FALSE`, the second thread also checks `enqueue_flag`, finds it still `TRUE`, and erroneously starts dequeuing elements. This could lead to undefined behavior, as the second thread might attempt to dequeue from an empty queue.
+
+To fix this, you should protect access to `enqueue_flag` and `dequeue_flag` with a mutex, just like you've done with the queue itself. This ensures that only one thread can modify these flags at a time, preventing the race condition.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2018 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#include <pthread.h>
+
+extern void __VERIFIER_atomic_begin();
+extern void __VERIFIER_atomic_end();
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+int i = 3, j = 6;
+
+#define NUM 10
+#define LIMIT (2*NUM+6)
+
+void *t1(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    i = j + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+void *t2(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    j = i + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  pthread_t id1, id2;
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  __VERIFIER_atomic_begin();
+  int condI = i >= LIMIT;
+  __VERIFIER_atomic_end();
+
+  __VERIFIER_atomic_begin();
+  int condJ = j >= LIMIT;
+  __VERIFIER_atomic_end();
+
+  if (condI || condJ) {
+    ERROR: {reach_error();abort();}
+  }
+
+  return 0;
+}
+
+Yes, there is a potential data race or race condition in the given program. The variables `i` and `j` are shared between the two threads `t1` and `t2`, and both threads are modifying these variables without proper synchronization.
+
+In thread `t1`, the statement `i = j + 1;` is modifying the value of `i` based on the current value of `j`. Similarly, in thread `t2`, the statement `j = i + 1;` is modifying the value of `j` based on the current value of `i`. If these statements are executed concurrently, the outcome of the program becomes unpredictable and dependent on the timing of context switches between the threads.
+
+For instance, if `i` and `j` both start with the value 3, one possible execution order could be:
+
+1. Thread `t1` reads `j` as 3 and calculates `j + 1` as 4.
+2. Thread `t2` reads `i` as 3 and calculates `i + 1` as 4.
+3. Thread `t1` writes 4 to `i`.
+4. Thread `t2` writes 4 to `j`.
+
+In this case, even though both threads have executed one iteration of their respective loops, the values of `i` and `j` have not increased beyond 4, and the condition `condI || condJ` in the main thread will not be true. This is a clear indication of a race condition.
+
+To resolve this, you could use mutual exclusion mechanisms like locks or semaphores to ensure that only one thread can modify `i` or `j` at a time. This would ensure that the changes made by one thread are visible to the other thread, preventing the race condition.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern int __VERIFIER_nondet_int(void);
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+#include <pthread.h>
+#include <stdio.h>
+#include <assert.h>
+
+#define SIZE	(800)
+#define EMPTY	(-1)
+#define FULL	(-2)
+#define FALSE	(0)
+#define TRUE	(1)
+
+typedef struct {
+  int element[SIZE];
+  int head;
+  int tail;
+  int amount;
+} QType;
+
+pthread_mutex_t m;
+int __VERIFIER_nondet_int();
+int stored_elements[SIZE];
+_Bool enqueue_flag, dequeue_flag;
+QType queue;
+
+void init(QType *q)
+{
+  q->head=0;
+  q->tail=0;
+  q->amount=0;
+}
+
+int empty(QType * q) 
+{
+  if (q->head == q->tail) 
+  { 
+    printf("queue is empty\n");
+    return EMPTY;
+  }
+  else 
+    return 0;
+}
+
+int full(QType * q) 
+{
+  if (q->amount == SIZE) 
+  {  
+    printf("queue is full\n");
+    return FULL;
+  } 
+  else
+    return 0;
+}
+
+int enqueue(QType *q, int x) 
+{
+  q->element[q->tail] = x;
+  q->amount++;
+  if (q->tail == SIZE) 
+  {
+    q->tail = 1;
+  } 
+  else 
+  {
+    q->tail++;
+  }
+
+  return 0;
+}
+
+int dequeue(QType *q) 
+{
+  int x;
+
+  x = q->element[q->head];
+  q->amount--;
+  if (q->head == SIZE) 
+  {
+    q->head = 1;
+  } 
+  else 
+    q->head++;
+
+  return x;
+}
+
+void *t1(void *arg) 
+{
+  int value, i;
+
+  pthread_mutex_lock(&m);
+  if (enqueue_flag)
+  {
+    for(i=0; i<SIZE; i++)  
+    {
+      value = __VERIFIER_nondet_int();
+      enqueue(&queue,value);
+      stored_elements[i]=value;
+    }
+    enqueue_flag=FALSE;
+    dequeue_flag=TRUE;
+  }	
+  pthread_mutex_unlock(&m);
+
+  return NULL;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  pthread_mutex_lock(&m);
+  if (dequeue_flag)
+  {
+    for(i=0; i<SIZE; i++)  
+    {
+      if (empty(&queue)!=EMPTY)
+        if (!dequeue(&queue)==stored_elements[i]) {
+          ERROR:{reach_error();abort();}
+        }
+    }
+    dequeue_flag=FALSE;
+    enqueue_flag=TRUE;
+  }
+  pthread_mutex_unlock(&m);
+
+  return NULL;
+}
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  enqueue_flag=TRUE;
+  dequeue_flag=FALSE;
+
+  init(&queue);
+
+  if (!empty(&queue)==EMPTY) {
+	ERROR:{reach_error();abort();}
+  }
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, &queue);
+  pthread_create(&id2, NULL, t2, &queue);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The program you've shared is a multi-threaded implementation of a circular queue. It appears to be correctly using a mutex (`pthread_mutex_lock(&m)` and `pthread_mutex_unlock(&m)`) to protect shared data (the `queue` and the `enqueue_flag` and `dequeue_flag` variables) from being simultaneously accessed by multiple threads, which is a good practice to avoid race conditions.
+
+However, there's a potential issue in the `t1` and `t2` functions. These functions only check the `enqueue_flag` and `dequeue_flag` once, at the beginning of their execution. If one thread finishes its work and changes the flags, the other thread might not notice this change if it has already passed the flag check. This could lead to a situation where both threads are waiting for each other to change the flags, resulting in a deadlock.
+
+To avoid this, you might consider using a condition variable in addition to the mutex, which would allow one thread to signal the other when it's done with its work and ready for the other thread to proceed.
+
+Another potential issue is the use of `__VERIFIER_nondet_int()` function. This function is typically used in formal verification contexts to represent a non-deterministic integer value. If this function can return the same value multiple times, the check `if (!dequeue(&queue)==stored_elements[i])` in `t2` might not correctly verify that the queue is working as expected.
+
+Lastly, the program does not handle the case where the queue is full. The `enqueue` function does not check if the queue is full before adding an element, which could lead to undefined behavior if the queue is indeed full.
+
+Please review these points and consider if they apply to your specific use case.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2018 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#include <pthread.h>
+
+extern void __VERIFIER_atomic_begin();
+extern void __VERIFIER_atomic_end();
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+int i = 3, j = 6;
+
+#define NUM 20
+#define LIMIT (2*NUM+6)
+
+void *t1(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    i = j + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+void *t2(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    j = i + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  pthread_t id1, id2;
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  __VERIFIER_atomic_begin();
+  int condI = i > LIMIT;
+  __VERIFIER_atomic_end();
+
+  __VERIFIER_atomic_begin();
+  int condJ = j > LIMIT;
+  __VERIFIER_atomic_end();
+
+  if (condI || condJ) {
+    ERROR: {reach_error();abort();}
+  }
+
+  return 0;
+}
+
+
+This program indeed contains a potential data race or race condition. The variables `i` and `j` are shared between two threads, `t1` and `t2`, and are both read and written by these threads without proper synchronization.
+
+In the function `t1`, the value of `j` is read and then used to update `i`. Similarly, in the function `t2`, the value of `i` is read and then used to update `j`. These operations are enclosed in `__VERIFIER_atomic_begin()` and `__VERIFIER_atomic_end()`, which suggests that they are intended to be atomic. However, atomicity only ensures that the operation is indivisible, it does not guarantee any ordering between the operations in different threads.
+
+The race condition arises because the order in which the threads `t1` and `t2` execute is non-deterministic. If `t1` executes first and updates `i` to `j + 1` (which is 7), and then `t2` executes and updates `j` to `i + 1` (which is 8), the values of `i` and `j` will be less than `LIMIT` (46). However, if `t2` executes first and updates `j` to `i + 1` (which is 4), and then `t1` executes and updates `i` to `j + 1` (which is 5), the values of `i` and `j` will still be less than `LIMIT`, even though each thread has executed one iteration. This violates the intended behavior of the program, which is to ensure that `i` and `j` exceed `LIMIT` after `NUM` iterations in each thread.
+
+To fix this race condition, you would need to use some form of synchronization between the threads, such as a mutex or a semaphore, to ensure that the updates to `i` and `j` are performed in a specific order.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+void assume_abort_if_not(int cond) {
+  if(!cond) {abort();}
+}
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+const int SIGMA = 16;
+
+int *array;
+int array_index=-1;
+
+
+void *thread(void * arg)
+{
+	array[array_index] = 1;
+	return 0;
+}
+
+
+int main()
+{
+	int tid, sum;
+	pthread_t *t;
+
+	t = (pthread_t *)malloc(sizeof(pthread_t) * SIGMA);
+	array = (int *)malloc(sizeof(int) * SIGMA);
+
+	assume_abort_if_not(t);
+	assume_abort_if_not(array);
+
+	for (tid=0; tid<SIGMA; tid++) {
+		array_index++;
+		pthread_create(&t[tid], 0, thread, 0);
+	}
+
+	for (tid=0; tid<SIGMA; tid++) {
+		pthread_join(t[tid], 0);
+	}
+
+	for (tid=sum=0; tid<SIGMA; tid++) {
+		sum += array[tid];
+	}
+
+	__VERIFIER_assert(sum == SIGMA);  // <-- wrong, different threads might use the same array offset when writing
+
+	return 0;
+}
+
+
+Yes, there is a data race in this program. The variable `array_index` is shared by multiple threads and is being modified without any synchronization, which can lead to unexpected behavior.
+
+In the `main` function, the `array_index` is incremented in a loop and then a new thread is created. This thread uses the value of `array_index` to set a value in the `array`. However, there is no guarantee that the `array_index` won't be modified by the main thread or another thread before it gets to use it.
+
+This can result in multiple threads writing to the same location in the `array`, overwriting each other's values. This is why the final assertion `__VERIFIER_assert(sum == SIGMA);` may not hold true, as some elements in the array might not be set to 1 due to this race condition.
+
+To fix this, you could use a mutex to protect the `array_index` variable, ensuring that only one thread can modify it at a time. Or, you could pass a unique index to each thread when creating it, so that each thread writes to a different location in the array.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 12
+#define TIMES 26 // 2*N+2
+#include "fib_unsafe.h"
+The provided code seems to be incomplete, as it doesn't include the actual implementation of the `fib_unsafe` function or any other code that could be analyzed for potential data races or race conditions.
+
+However, I can provide you with a general explanation of what data races and race conditions are and how they could potentially occur in a program like this.
+
+A data race occurs when two or more threads access the same data concurrently, and at least one of the threads modifies the data. This can lead to unpredictable results, as the outcome depends on the order in which the threads execute, which is non-deterministic.
+
+A race condition is a type of software bug that occurs when the behavior of an electronic or software system depends on the sequence or timing of other uncontrollable events. It becomes a bug when events do not happen in the order the programmer intended.
+
+In the context of the provided code, if the `fib_unsafe` function or any other code not included in the snippet involves shared memory access between multiple threads, and the access is not properly synchronized (e.g., with locks or atomic operations), then there could potentially be data races or race conditions.
+
+To provide a more specific analysis, I would need to see the rest of the code.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2018 The Nidhugg project
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-or-later
+
+#define N 5
+#define TIMES 12
+#include "fib_unsafe.h"
+Looking at the provided code, it seems like the actual implementation of the `fib_unsafe` function and any concurrent code that might be using it are missing. However, I can still provide some general insights into potential data races or race conditions.
+
+A data race or race condition typically occurs in concurrent programming when multiple threads access shared data simultaneously and at least one of them modifies it. The absence of proper synchronization mechanisms (e.g., locks, atomic operations, or barriers) can lead to unexpected behaviors and inconsistent program states.
+
+In the given code snippet, there is no explicit concurrency being shown. However, assuming that the `fib_unsafe` function uses shared data, a potential data race or race condition might occur if multiple threads call the function concurrently without any synchronization.
+
+To prevent data races or race conditions, you can consider using the following techniques:
+
+1. Mutex locks: Protect shared data using mutual exclusion locks (mutexes) to ensure that only one thread can access the shared data at any given time.
+
+2. Atomic operations: Use atomic data types and operations to ensure that modifications to shared data are indivisible and cannot be interrupted by other threads.
+
+3. Barriers: Synchronize threads at specific points in the program using barriers, ensuring that all threads have reached a certain point before any of them can proceed.
+
+Without the actual implementation of the `fib_unsafe` function and any concurrent code that might be using it, it is not possible to pinpoint specific data races or race conditions. However, the general advice provided above should help prevent such issues.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+extern void __VERIFIER_atomic_begin(void);
+extern void __VERIFIER_atomic_end(void);
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+char *v;
+
+void *thread1(void * arg)
+{
+  v = malloc(sizeof(char));
+  return 0;
+}
+
+void *thread2(void *arg)
+{
+  __VERIFIER_atomic_begin();
+  v[0] = 'X';
+  __VERIFIER_atomic_end();
+  return 0;
+}
+
+void *thread3(void *arg)
+{
+  __VERIFIER_atomic_begin();
+  v[0] = 'Y';
+  __VERIFIER_atomic_end();
+  return 0;
+}
+
+void *thread0(void *arg)
+{
+  pthread_t t1, t2, t3, t4, t5;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_join(t1, 0);
+  pthread_create(&t2, 0, thread2, 0);  
+  pthread_create(&t3, 0, thread3, 0);
+  pthread_create(&t4, 0, thread2, 0);
+  pthread_create(&t5, 0, thread2, 0);
+  pthread_join(t2, 0);
+  pthread_join(t3, 0);
+  pthread_join(t4, 0);
+  pthread_join(t5, 0);
+
+  return 0;
+}
+
+int main(void)
+{
+  pthread_t t;
+
+  pthread_create(&t, 0, thread0, 0);
+  pthread_join(t, 0);
+
+  __VERIFIER_assert(v[0] == 'X' || v[0] == 'Y');
+
+  return 0;
+}
+
+
+Yes, there is a potential data race or race condition in the provided program. The issue arises due to multiple threads (thread2, thread3, thread4, and thread5) accessing and modifying the same memory location, `v[0]`, without proper synchronization.
+
+Here's a more detailed explanation:
+
+1. `thread1` allocates memory for `v` and initializes it.
+2. `thread2`, `thread3`, `thread4`, and `thread5` are created and executed. All of these threads try to modify the value of `v[0]`.
+3. Although the modifications in `thread2`, `thread3`, `thread4`, and `thread5` are wrapped in `__VERIFIER_atomic_begin()` and `__VERIFIER_atomic_end()`, these functions only ensure that the operation is atomic, not that it is thread-safe. In other words, they don't prevent other threads from accessing and modifying `v[0]` at the same time.
+4. As a result, there is a race condition: depending on the order in which the threads are executed, `v[0]` could end up being either 'X' or 'Y'. This is non-deterministic behavior and can lead to hard-to-debug issues.
+
+To fix this issue, you would need to use a synchronization mechanism, such as mutexes, to ensure that only one thread can modify `v[0]` at a time.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+extern void __VERIFIER_atomic_begin(void);
+extern void __VERIFIER_atomic_end(void);
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+char *v;
+
+void *thread1(void * arg)
+{
+  v = malloc(sizeof(char));
+  return 0;
+}
+
+void *thread2(void *arg)
+{
+  __VERIFIER_atomic_begin();
+  v[0] = 'X';
+  __VERIFIER_atomic_end();
+  return 0;
+}
+
+void *thread3(void *arg)
+{
+  __VERIFIER_atomic_begin();
+  v[0] = 'Y';
+  __VERIFIER_atomic_end();
+  return 0;
+}
+
+void *thread0(void *arg)
+{
+  pthread_t t1, t2, t3, t4, t5;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_join(t1, 0);
+  pthread_create(&t2, 0, thread2, 0);  
+  pthread_create(&t3, 0, thread3, 0);
+  pthread_create(&t4, 0, thread2, 0);
+  pthread_create(&t5, 0, thread2, 0);
+  pthread_join(t2, 0);
+  pthread_join(t3, 0);
+  pthread_join(t4, 0);
+  pthread_join(t5, 0);
+
+  return 0;
+}
+
+int main(void)
+{
+  pthread_t t;
+
+  pthread_create(&t, 0, thread0, 0);
+  pthread_join(t, 0);
+
+  __VERIFIER_assert(v[0] == 'X'); // <-- wrong, the only thread that writes 'Y' can be the last to write
+
+  return 0;
+}
+
+
+Yes, there is a potential data race or race condition in the provided program. The issue lies in the fact that threads `thread2`, `thread3`, `thread4`, and `thread5` are all modifying the same memory location, `v[0]`, without proper synchronization. While each modification is atomic, there is no control over the order in which these threads execute, leading to unpredictable results.
+
+In the `main` function, the program asserts that `v[0]` should be equal to `'X'`. However, it is possible that `thread3`, which writes `'Y'` to `v[0]`, is the last thread to execute, making the assertion false and causing the program to reach an error state.
+
+To fix this issue, you should use some form of synchronization, such as mutexes or semaphores, to ensure that only one thread can modify `v[0]` at a time and that the order of modifications is controlled. Alternatively, you could use atomic operations with the appropriate memory ordering to ensure that the last write to `v[0]` is an `'X'`. However, the latter solution may not be possible or practical depending on the specific requirements of your program.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The CSeq project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+
+void __VERIFIER_assert(int expression) { if (!expression) { ERROR: {reach_error();abort();}}; return; }
+
+char *v;
+
+void *thread1(void * arg)
+{
+  v = malloc(sizeof(char));
+  return 0;
+}
+
+void *thread2(void *arg)
+{
+  v[0] = 'X';
+  return 0;
+}
+
+void *thread3(void *arg)
+{
+  v[0] = 'Y';
+  return 0;
+}
+
+void *thread0(void *arg)
+{
+  pthread_t t1, t2, t3, t4, t5;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_join(t1, 0);
+  pthread_create(&t2, 0, thread2, 0);  
+  pthread_create(&t3, 0, thread3, 0);
+  pthread_create(&t4, 0, thread2, 0);
+  pthread_create(&t5, 0, thread2, 0);
+  pthread_join(t2, 0);
+  pthread_join(t3, 0);
+  pthread_join(t4, 0);
+  pthread_join(t5, 0);
+
+  return 0;
+}
+
+int main(void)
+{
+  pthread_t t;
+
+  pthread_create(&t, 0, thread0, 0);
+  pthread_join(t, 0);
+
+  __VERIFIER_assert(v[0] == 'X'); // <-- wrong, the only thread that writes 'Y' can be the last to write
+
+  return 0;
+}
+
+
+The program you've shared indeed contains a potential data race or race condition. This is due to the fact that multiple threads (thread2, thread3, thread4, and thread5) are trying to access and modify the same memory location, `v[0]`, without any synchronization.
+
+Here's a step-by-step explanation:
+
+1. `thread1` allocates memory for `v` and initializes it.
+2. `thread2`, `thread3`, `thread4`, and `thread5` are created and they all attempt to modify `v[0]`.
+3. The order in which these threads execute is non-deterministic. This means that any of these threads could be the last one to write to `v[0]`.
+4. In the `main` function, there's an assertion that `v[0]` should be 'X'. However, since there's no guarantee that `thread2` will be the last one to write to `v[0]`, this assertion can fail, leading to undefined behavior.
+
+To fix this race condition, you could use a mutex to synchronize access to `v[0]`, ensuring that only one thread can modify it at a time. Alternatively, you could use some other form of synchronization, such as a semaphore or a condition variable, depending on your specific needs.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+extern void abort(void);
+void assume_abort_if_not(int cond) {
+  if(!cond) {abort();}
+}
+#include <pthread.h>
+#include <stdio.h>
+
+#define TRUE	  (1)
+#define FALSE	  (0) 
+#define SIZE	  (800)
+#define OVERFLOW  (-1)
+#define UNDERFLOW (-2)
+
+unsigned int __VERIFIER_nondet_uint();
+static int top=0;
+static unsigned int arr[SIZE];
+pthread_mutex_t m;
+_Bool flag=FALSE;
+
+void error(void) 
+{ 
+  ERROR: {reach_error();abort();}  return;
+}
+
+void inc_top(void)
+{
+  top++;
+}
+
+void dec_top(void)
+{
+  top--;
+}
+
+int get_top(void)
+{
+  return top;
+}
+
+int stack_empty(void)
+{
+  return (top==0) ? TRUE : FALSE;
+}
+
+int push(unsigned int *stack, int x)
+{
+  if (top==SIZE) 
+  {
+    printf("stack overflow\n");
+    return OVERFLOW;
+  } 
+  else 
+  {
+    stack[get_top()] = x;
+    inc_top();
+  }
+  return 0;
+}
+
+int pop(unsigned int *stack)
+{
+  if (top==0) 
+  {
+    printf("stack underflow\n");	
+    return UNDERFLOW;
+  } 
+  else 
+  {
+    dec_top();
+    return stack[get_top()];  
+  }
+  return 0;
+}
+
+void *t1(void *arg) 
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);   
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if ((push(arr,tmp)==OVERFLOW))
+      error();
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (top>0)
+    {    
+      if ((pop(arr)==UNDERFLOW))
+        error();
+    }    
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The given program uses a mutex to protect the shared variable `top` and the array `arr` from being accessed concurrently by multiple threads. The functions `push` and `pop` are used to modify the shared variable `top` and the array `arr`, and these functions are called by the threads `t1` and `t2` respectively. The mutex is locked before calling these functions and unlocked after the functions return, ensuring that only one thread can modify the shared variable and array at a time.
+
+However, there is still a potential race condition in this program. The issue lies in the `pop` function. After the `dec_top()` call, there is a check for `stack_empty()`, but the `get_top()` call is made after this check. This creates a window of opportunity for a context switch, where another thread could call `push` and increment the `top` variable before the current thread calls `get_top()`. This would result in the `pop` function returning the wrong value.
+
+To fix this, the `get_top()` call should be made before the `dec_top()` call in the `pop` function, ensuring that the correct value is returned even if a context switch occurs after the `dec_top()` call.
+
+Here is the corrected `pop` function:
+
+```c
+int pop(unsigned int *stack)
+{
+  int val;
+  if (top==0)
+  {
+    printf("stack underflow\n");
+    return UNDERFLOW;
+  }
+  else
+  {
+    val = stack[get_top()];
+    dec_top();
+    return val;
+  }
+  return 0;
+}
+```
+This way, the value is stored in `val` before `top` is decremented, preventing any potential race conditions.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern int __VERIFIER_nondet_int(void);
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <pthread.h>
+#include <stdio.h>
+#include <assert.h>
+
+#define SIZE	(20)
+#define EMPTY	(-1)
+#define FULL	(-2)
+#define FALSE	(0)
+#define TRUE	(1)
+
+typedef struct {
+    int element[SIZE];
+    int head;
+    int tail;
+    int amount;
+} QType;
+
+pthread_mutex_t m;
+int __VERIFIER_nondet_int();
+int stored_elements[SIZE];
+_Bool enqueue_flag, dequeue_flag;
+QType queue;
+
+void init(QType *q)
+{
+  q->head=0;
+  q->tail=0;
+  q->amount=0;
+}
+
+int empty(QType * q) 
+{
+  if (q->head == q->tail) 
+  { 
+    printf("queue is empty\n");
+    return EMPTY;
+  }
+  else 
+    return 0;
+}
+
+int full(QType * q) 
+{
+  if (q->amount == SIZE) 
+  {  
+	printf("queue is full\n");
+	return FULL;
+  } 
+  else
+    return 0;
+}
+
+int enqueue(QType *q, int x) 
+{
+  q->element[q->tail] = x;
+  q->amount++;
+  if (q->tail == SIZE) 
+  {
+    q->tail = 1;
+  } 
+  else 
+  {
+    q->tail++;
+  }
+
+  return 0;
+}
+
+int dequeue(QType *q) 
+{
+  int x;
+
+  x = q->element[q->head];
+  q->amount--;
+  if (q->head == SIZE) 
+  {
+    q->head = 1;
+  } 
+  else 
+    q->head++;
+
+  return x;
+}
+
+void *t1(void *arg) 
+{
+  int value, i;
+
+  pthread_mutex_lock(&m);
+  value = __VERIFIER_nondet_int();
+  if (enqueue(&queue,value)) {
+    goto ERROR;
+  }
+
+  stored_elements[0]=value;
+  if (empty(&queue)) {
+    goto ERROR;
+  }
+
+  pthread_mutex_unlock(&m);
+
+  for(i=0; i<(SIZE-1); i++)  
+  {
+    pthread_mutex_lock(&m);
+    if (enqueue_flag)
+    {
+      value = __VERIFIER_nondet_int();
+      enqueue(&queue,value);
+      stored_elements[i+1]=value;
+      enqueue_flag=FALSE;
+      dequeue_flag=TRUE;
+    }
+    pthread_mutex_unlock(&m);
+  }	
+
+  return NULL;
+
+  ERROR: {reach_error();abort();}
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)  
+  {
+    pthread_mutex_lock(&m);
+    if (dequeue_flag)
+    {
+      if (!dequeue(&queue)==stored_elements[i]) {
+        ERROR: {reach_error();abort();}
+      }
+      dequeue_flag=FALSE;
+      enqueue_flag=TRUE;
+    }
+    pthread_mutex_unlock(&m);
+  }
+
+  return NULL;
+}
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  enqueue_flag=TRUE;
+  dequeue_flag=FALSE;
+
+  init(&queue);
+
+  if (!empty(&queue)==EMPTY) {
+    ERROR: {reach_error();abort();}
+    goto ERROR;
+  }
+
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, &queue);
+  pthread_create(&id2, NULL, t2, &queue);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The code you've provided is a multi-threaded program that uses a mutex to protect shared data, specifically the `queue` and the `enqueue_flag` and `dequeue_flag` variables. The functions `t1()` and `t2()` are executed as separate threads, and they both lock and unlock the mutex `m` when accessing the shared data.
+
+However, there is a potential race condition in this code. The race condition can occur due to the lack of synchronization when checking the `enqueue_flag` and `dequeue_flag` variables and setting them to `TRUE` or `FALSE`.
+
+For instance, in the `t1()` function, the `enqueue_flag` is set to `FALSE` and `dequeue_flag` is set to `TRUE` after an element is enqueued. But there is no guarantee that the `t2()` function will see these updated values immediately, as another iteration of the loop in `t1()` could start and change these flags again before `t2()` has a chance to react to them.
+
+Similarly, in the `t2()` function, the `dequeue_flag` is set to `FALSE` and `enqueue_flag` is set to `TRUE` after an element is dequeued. But there is no guarantee that the `t1()` function will see these updated values immediately, as another iteration of the loop in `t2()` could start and change these flags again before `t1()` has a chance to react to them.
+
+To fix this, you could consider using condition variables in addition to the mutex to ensure that the threads are properly synchronized. This would allow the `t1()` thread to signal the `t2()` thread when an element has been enqueued and the `dequeue_flag` should be set to `TRUE`, and similarly, the `t2()` thread could signal the `t1()` thread when an element has been dequeued and the `enqueue_flag` should be set to `TRUE`.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+#include <pthread.h>
+#include <assert.h>
+
+pthread_mutex_t  mutex;
+int data = 0;
+
+void *thread1(void *arg)
+{
+  pthread_mutex_lock(&mutex);
+  data++;
+  pthread_mutex_unlock(&mutex);
+  return 0;
+}
+
+
+void *thread2(void *arg)
+{
+  pthread_mutex_lock(&mutex);
+  data+=2;
+  pthread_mutex_unlock(&mutex);
+  return 0;
+}
+
+
+void *thread3(void *arg)
+{
+  pthread_mutex_lock(&mutex);
+  if (data >= 3){
+    ERROR: {reach_error();abort();}
+    ;
+  }
+  pthread_mutex_unlock(&mutex);    
+  return 0;
+}
+
+
+int main()
+{
+  pthread_mutex_init(&mutex, 0);
+
+  pthread_t t1, t2, t3;
+
+  pthread_create(&t1, 0, thread1, 0);
+  pthread_create(&t2, 0, thread2, 0);
+  pthread_create(&t3, 0, thread3, 0);
+
+  pthread_join(t1, 0);
+  pthread_join(t2, 0);
+  pthread_join(t3, 0);
+  
+  return 0;
+}
+
+The program you've provided is using mutex locks correctly to prevent data races. A data race or race condition typically occurs when two or more threads access shared data concurrently and at least one of them is a write operation. However, in this case, the mutex locks ensure that only one thread can access the shared variable `data` at a time.
+
+Here's a brief explanation of how the mutex locks work in this program:
+
+1. In each thread function (`thread1`, `thread2`, `thread3`), the first operation is `pthread_mutex_lock(&mutex)`. This operation ensures that the thread acquires the lock on the mutex before proceeding. If the mutex is already locked by another thread, the current thread will block until the mutex is unlocked.
+
+2. After acquiring the lock, the thread performs its operation on the shared variable `data`. In `thread1` and `thread2`, the value of `data` is incremented. In `thread3`, the value of `data` is checked.
+
+3. Once the operation is completed, the thread releases the lock on the mutex with `pthread_mutex_unlock(&mutex)`. This allows other threads that are blocked on the mutex to proceed.
+
+Since each thread acquires the lock before accessing `data` and releases it afterwards, there is no possibility of a data race or race condition in this program. The mutex ensures that the operations on `data` are atomic, meaning they are indivisible and cannot be interrupted by other threads.
+
+However, the order of thread execution is non-deterministic, which means the final value of `data` and whether the error condition in `thread3` is reached depends on the scheduling of the threads by the operating system. But this is not a race condition, it's just a characteristic of concurrent programming.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+extern void abort(void);
+void assume_abort_if_not(int cond) {
+  if(!cond) {abort();}
+}
+#include <pthread.h>
+#include <stdio.h>
+
+#define TRUE	  (1)
+#define FALSE	  (0) 
+#define SIZE	  (800)
+#define OVERFLOW  (-1)
+#define UNDERFLOW (-2)
+
+unsigned int __VERIFIER_nondet_uint();
+static int top=0;
+static unsigned int arr[SIZE];
+pthread_mutex_t m;
+_Bool flag=FALSE;
+
+void error(void) 
+{ 
+  ERROR: {reach_error();abort();}  return;
+}
+
+void inc_top(void)
+{
+  top++;
+}
+
+void dec_top(void)
+{
+  top--;
+}
+
+int get_top(void)
+{
+  return top;
+}
+
+int stack_empty(void)
+{
+  return (top==0) ? TRUE : FALSE;
+}
+
+int push(unsigned int *stack, int x)
+{
+  if (top==SIZE) 
+  {
+    printf("stack overflow\n");
+    return OVERFLOW;
+  } 
+  else 
+  {
+    stack[get_top()] = x;
+    inc_top();
+  }
+  return 0;
+}
+
+int pop(unsigned int *stack)
+{
+  if (get_top()==0) 
+  {
+    printf("stack underflow\n");	
+    return UNDERFLOW;
+  } 
+  else 
+  {
+    dec_top();
+    return stack[get_top()];  
+  }
+  return 0;
+}
+
+void *t1(void *arg) 
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if (push(arr,tmp)==OVERFLOW)
+      error();
+    flag=TRUE;
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (flag)
+    {
+      if (!(pop(arr)!=UNDERFLOW))
+        error();
+    }
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The program seems to be correctly using mutex locks to protect shared resources from being accessed simultaneously by multiple threads, which helps prevent data races or race conditions. However, there is a potential issue with the `flag` variable.
+
+The `flag` variable is set to `TRUE` in thread `t1` after a successful push operation, and thread `t2` checks this flag before performing a pop operation. However, the `flag` variable is not protected by a mutex lock, which means that its value could be changed by another thread before thread `t2` has a chance to check it. This could potentially lead to a race condition.
+
+To fix this, you could protect the `flag` variable with a mutex lock in the same way that the `arr` array and `top` variable are protected. This would ensure that the value of `flag` cannot be changed by another thread while thread `t2` is checking it.
+
+Here is an example of how you could modify the `t1` and `t2` functions to protect the `flag` variable:
+
+```c
+void *t1(void *arg)
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if (push(arr,tmp)==OVERFLOW)
+      error();
+    flag=TRUE;
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg)
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (flag)
+    {
+      flag = FALSE; // reset flag
+      if (!(pop(arr)!=UNDERFLOW))
+        error();
+    }
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+```
+
+In this modified version, the `flag` variable is set to `FALSE` in thread `t2` after a successful pop operation. This ensures that thread `t2` will not perform another pop operation until thread `t1` has performed another push operation and set `flag` to `TRUE` again.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2018 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#include <pthread.h>
+
+extern void __VERIFIER_atomic_begin();
+extern void __VERIFIER_atomic_end();
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+
+int i = 3, j = 6;
+
+#define NUM 5
+#define LIMIT (2*NUM+6)
+
+void *t1(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    i = j + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+void *t2(void *arg) {
+  for (int k = 0; k < NUM; k++) {
+    __VERIFIER_atomic_begin();
+    j = i + 1;
+    __VERIFIER_atomic_end();
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  pthread_t id1, id2;
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  __VERIFIER_atomic_begin();
+  int condI = i > LIMIT;
+  __VERIFIER_atomic_end();
+
+  __VERIFIER_atomic_begin();
+  int condJ = j > LIMIT;
+  __VERIFIER_atomic_end();
+
+  if (condI || condJ) {
+    ERROR: {reach_error();abort();}
+  }
+
+  return 0;
+}
+
+The given program may have a potential data race or race condition because both threads `t1` and `t2` are accessing and modifying the shared variables `i` and `j` without proper synchronization.
+
+In the function `t1`, the variable `i` is being updated with the value of `j + 1` inside an atomic block. Similarly, in the function `t2`, the variable `j` is being updated with the value of `i + 1` inside an atomic block. The atomic blocks only ensure that the operation within the block is executed atomically, but they do not guarantee the order of execution or provide any synchronization between different blocks or threads.
+
+As a result, both threads can run concurrently and interfere with each other's execution. For example, thread `t1` might update `i` based on an outdated value of `j`, while thread `t2` updates `j` based on an outdated value of `i`. This can lead to unpredictable behavior and inconsistent results, ultimately causing the condition `condI || condJ` in the main function to become true and trigger the error.
+
+To resolve the race condition, you can use synchronization mechanisms such as mutexes or semaphores to ensure that only one thread can access and modify the shared variables at a time. This way, you can enforce an order of execution and prevent conflicting updates to the shared variables.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: 2020 The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+extern void abort(void);
+void assume_abort_if_not(int cond) {
+  if(!cond) {abort();}
+}
+#include <pthread.h>
+#include <stdio.h>
+
+#define TRUE	  (1)
+#define FALSE	  (0) 
+#define SIZE	  (400)
+#define OVERFLOW  (-1)
+#define UNDERFLOW (-2)
+
+unsigned int __VERIFIER_nondet_uint();
+static int top=0;
+static unsigned int arr[SIZE];
+pthread_mutex_t m;
+_Bool flag=FALSE;
+
+void error(void) 
+{ 
+  ERROR: {reach_error();abort();}  return;
+}
+
+void inc_top(void)
+{
+  top++;
+}
+
+void dec_top(void)
+{
+  top--;
+}
+
+int get_top(void)
+{
+  return top;
+}
+
+int stack_empty(void)
+{
+  return (top==0) ? TRUE : FALSE;
+}
+
+int push(unsigned int *stack, int x)
+{
+  if (top==SIZE) 
+  {
+    printf("stack overflow\n");
+    return OVERFLOW;
+  } 
+  else 
+  {
+    stack[get_top()] = x;
+    inc_top();
+  }
+  return 0;
+}
+
+int pop(unsigned int *stack)
+{
+  if (top==0) 
+  {
+    printf("stack underflow\n");	
+    return UNDERFLOW;
+  } 
+  else 
+  {
+    dec_top();
+    return stack[get_top()];  
+  }
+  return 0;
+}
+
+void *t1(void *arg) 
+{
+  int i;
+  unsigned int tmp;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);   
+    tmp = __VERIFIER_nondet_uint();
+    assume_abort_if_not(tmp < SIZE);
+    if ((push(arr,tmp)==OVERFLOW))
+      error();
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    if (top>0)
+    {    
+      if ((pop(arr)==UNDERFLOW))
+        error();
+    }    
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, NULL);
+  pthread_create(&id2, NULL, t2, NULL);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The given program seems to be correctly using mutex locks to prevent data races. The `push` and `pop` operations in the stack are protected by the mutex `m`, meaning that only one thread can perform these operations at a time. This ensures that the `top` variable and the `arr` array are accessed and modified safely, without any potential data races or race conditions.
+
+However, there is a potential issue with the `pop` operation in the `t2` thread function. The thread checks if `top > 0` before calling `pop(arr)`, but there is a time gap between this check and the actual `pop` operation. In a multithreaded environment, another thread could potentially `pop` from the stack after the check but before the `pop` operation in `t2`, causing an underflow error. To fix this, the `top > 0` check and the `pop` operation should be combined into a single atomic operation.
+
+Here is a potential fix for the `t2` function:
+
+```c
+void *t2(void *arg)
+{
+  int i;
+  int result;
+
+  for(i=0; i<SIZE; i++)
+  {
+    pthread_mutex_lock(&m);
+    result = pop(arr);
+    if (result != UNDERFLOW) {
+      assume_abort_if_not(result >= 0);
+    } else {
+      error();
+    }
+    pthread_mutex_unlock(&m);
+  }
+  return 0;
+}
+```
+
+And the `pop` function would be modified to return the value directly if the stack is not empty:
+
+```c
+int pop(unsigned int *stack)
+{
+  if (top==0)
+  {
+    printf("stack underflow\n");
+    return UNDERFLOW;
+  }
+  else
+  {
+    int value = stack[get_top()];
+    dec_top();
+    return value;
+  }
+  return 0;
+}
+```
+
+This way, the check for an empty stack and the `pop` operation are performed atomically, preventing any potential race conditions.
+
+----------------------------------------
+
+Can you identify a potential datarace or race condition in the following program?
+// This file is part of the SV-Benchmarks collection of verification tasks:
+// https://github.com/sosy-lab/sv-benchmarks
+//
+// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
+// SPDX-FileCopyrightText: The ESBMC project
+//
+// SPDX-License-Identifier: Apache-2.0
+
+extern int __VERIFIER_nondet_int(void);
+extern void abort(void);
+#include <assert.h>
+void reach_error() { assert(0); }
+#include <pthread.h>
+#include <stdio.h>
+#include <assert.h>
+
+#define SIZE	(800)
+#define EMPTY	(-1)
+#define FULL	(-2)
+#define FALSE	(0)
+#define TRUE	(1)
+
+typedef struct {
+    int element[SIZE];
+    int head;
+    int tail;
+    int amount;
+} QType;
+
+pthread_mutex_t m;
+int __VERIFIER_nondet_int();
+int stored_elements[SIZE];
+_Bool enqueue_flag, dequeue_flag;
+QType queue;
+
+void init(QType *q)
+{
+  q->head=0;
+  q->tail=0;
+  q->amount=0;
+}
+
+int empty(QType * q) 
+{
+  if (q->head == q->tail) 
+  { 
+    printf("queue is empty\n");
+    return EMPTY;
+  }
+  else 
+    return 0;
+}
+
+int full(QType * q) 
+{
+  if (q->amount == SIZE) 
+  {  
+	printf("queue is full\n");
+	return FULL;
+  } 
+  else
+    return 0;
+}
+
+int enqueue(QType *q, int x) 
+{
+  q->element[q->tail] = x;
+  q->amount++;
+  if (q->tail == SIZE) 
+  {
+    q->tail = 1;
+  } 
+  else 
+  {
+    q->tail++;
+  }
+
+  return 0;
+}
+
+int dequeue(QType *q) 
+{
+  int x;
+
+  x = q->element[q->head];
+  q->amount--;
+  if (q->head == SIZE) 
+  {
+    q->head = 1;
+  } 
+  else 
+    q->head++;
+
+  return x;
+}
+
+void *t1(void *arg) 
+{
+  int value, i;
+
+  pthread_mutex_lock(&m);
+  value = __VERIFIER_nondet_int();
+  if (enqueue(&queue,value)) {
+    goto ERROR;
+  }
+
+  stored_elements[0]=value;
+  if (empty(&queue)) {
+    goto ERROR;
+  }
+
+  pthread_mutex_unlock(&m);
+
+  for(i=0; i<(SIZE-1); i++)  
+  {
+    pthread_mutex_lock(&m);
+    if (enqueue_flag)
+    {
+      value = __VERIFIER_nondet_int();
+      enqueue(&queue,value);
+      stored_elements[i+1]=value;
+      enqueue_flag=FALSE;
+      dequeue_flag=TRUE;
+    }
+    pthread_mutex_unlock(&m);
+  }	
+
+  return NULL;
+
+	ERROR:{reach_error();abort();}
+}
+
+void *t2(void *arg) 
+{
+  int i;
+
+  for(i=0; i<SIZE; i++)  
+  {
+    pthread_mutex_lock(&m);
+    if (dequeue_flag)
+    {
+      if (!dequeue(&queue)==stored_elements[i]) {
+        ERROR:{reach_error();abort();}
+      }
+      dequeue_flag=FALSE;
+      enqueue_flag=TRUE;
+    }
+    pthread_mutex_unlock(&m);
+  }
+
+  return NULL;
+}
+
+int main(void) 
+{
+  pthread_t id1, id2;
+
+  enqueue_flag=TRUE;
+  dequeue_flag=FALSE;
+
+  init(&queue);
+
+  if (!empty(&queue)==EMPTY) {
+    ERROR:{reach_error();abort();}
+  }
+
+
+  pthread_mutex_init(&m, 0);
+
+  pthread_create(&id1, NULL, t1, &queue);
+  pthread_create(&id2, NULL, t2, &queue);
+
+  pthread_join(id1, NULL);
+  pthread_join(id2, NULL);
+
+  return 0;
+}
+
+
+The program you've shared is a multi-threaded implementation of a circular queue. It uses a mutex to protect the shared queue from being simultaneously accessed by multiple threads, which is a good practice to avoid race conditions.
+
+However, there's a potential issue in the program that could lead to a race condition. The issue lies in the use of `enqueue_flag` and `dequeue_flag` variables. These variables are shared between threads and are used to signal when to enqueue or dequeue an element from the queue. However, they are not protected by a mutex or any other synchronization mechanism when they are being read or written.
+
+For instance, in thread `t1`, `enqueue_flag` is set to `FALSE` and `dequeue_flag` is set to `TRUE` after an element is enqueued. But there's no guarantee that thread `t2` will see these updated values immediately. If thread `t2` is scheduled to run before these updates, it could still see the old values of these flags, leading to unexpected behavior.
+
+To fix this, you should protect these flag variables with a mutex or use atomic operations to ensure that their read and write operations are indivisible and cannot be interrupted by other threads.
+
+----------------------------------------
+
+
+
+
+

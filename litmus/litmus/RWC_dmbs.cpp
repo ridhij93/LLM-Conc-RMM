@@ -47,7 +47,7 @@ int main()
   (void) pthread_join(threads[0], NULL);
   (void) pthread_join(threads[1], NULL);
   (void) pthread_join(threads[2], NULL);
-  assert( y != 2 || a != 1);
+  assert( b != 1 || a != 1);
   // if (a==1 && b==1)
   //   std::cout << "Assertion failed" << '\n';
 }

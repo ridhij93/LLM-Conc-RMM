@@ -190,12 +190,8 @@ int main()
   __VERIFIER_atomic_begin();
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   main$tmp_guard1 = !(z == 2 && __unbuffered_p0_EAX == 0 && __unbuffered_p1_EAX == 0);
   __VERIFIER_atomic_end();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

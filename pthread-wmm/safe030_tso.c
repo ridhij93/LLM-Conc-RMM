@@ -174,12 +174,8 @@ int main()
   __VERIFIER_atomic_begin();
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   main$tmp_guard1 = !(x == 2 && y == 2 && z == 2);
   __VERIFIER_atomic_end();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

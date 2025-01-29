@@ -13,7 +13,7 @@ void *thread1(void * threadid)
     x = 1;
     p = x;
     if (p==2)
-	a=1;
+	    a=1;
 }
 
 void *thread2(void * threadid)

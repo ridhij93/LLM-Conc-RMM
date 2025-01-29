@@ -11,7 +11,7 @@ std::atomic<int> a;
 std::atomic<int> b;
 void *thread1(void *threadid)
 {
-    x.store(1, std::memory_order_seq_cst); // Atomic store operation to set x to 1
+    x.store(1, std::memory_order_seq_cst); 
 }
 
 void *thread2(void *threadid)
@@ -27,7 +27,7 @@ void *thread2(void *threadid)
 void *thread3(void *threadid)
 {
     int r;
-    atomic_store(&y, 1);// Atomic store operation to set y to 1
+    atomic_store(&y, 1);
     std::atomic_thread_fence(std::memory_order_seq_cst);
     r = atomic_load(&x); 
     if (r == 0)
@@ -51,6 +51,4 @@ int main()
   (void) pthread_join(threads[1], NULL);
   (void) pthread_join(threads[2], NULL);
   assert( y != 2 || a != 1);
-  // if (a==1 && b==1)
-  //   std::cout << "Assertion failed" << '\n';
 }

@@ -14,16 +14,12 @@ void *thread1(void *threadid)
 {
     int p;
 
-    // Non-atomic store operation to set x to 1
     atomic_store(&x, 1);
 
-    // Atomic load operation to read y
     p = atomic_load(&y);
 
-    // Check condition atomically
     if (p == 0)
     {
-        // Atomic store operation to set a to 1
         atomic_store(&a, 1);
     }
 
@@ -33,16 +29,12 @@ void *thread2(void *threadid)
 {
     int q;
 
-    // Non-atomic store operation to set y to 1
     atomic_store(&y, 1);
 
-    // Atomic load operation to read x
     q = atomic_load(&x);
 
-    // Check condition atomically
     if (q == 0)
     {
-        // Atomic store operation to set b to 1
         atomic_store(&b, 1);
     }
 
@@ -63,6 +55,4 @@ int main()
   (void) pthread_join(threads[0], NULL);
   (void) pthread_join(threads[1], NULL);
   assert ( a != 1 || b != 1);
-  // if ((a==1) && (b==1))
-  //   cout << "Assertion failed" << endl;
 }

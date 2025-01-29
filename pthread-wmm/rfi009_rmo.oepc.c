@@ -336,14 +336,10 @@ int main()
   x$r_buff1_thd0 = x$w_buff0_used && x$r_buff0_thd0 || x$w_buff1_used && x$r_buff1_thd0 ? FALSE : x$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   weak$$choice1 = __VERIFIER_nondet_bool();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   __unbuffered_p0_EAX = __unbuffered_p0_EAX$read_delayed ? (weak$$choice1 ? *__unbuffered_p0_EAX$read_delayed_var : __unbuffered_p0_EAX) : __unbuffered_p0_EAX;
-  /* Program proven to be relaxed for X86, model checker says YES. */
   main$tmp_guard1 = !(__unbuffered_p0_EAX == 1 && __unbuffered_p0_EBX == 0 && __unbuffered_p1_EAX == 1 && __unbuffered_p1_EBX == 0);
   __VERIFIER_atomic_end();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

@@ -7,7 +7,6 @@
 
 using namespace std;
 
-// Global variables
 std::atomic<int> x;
 std::atomic<int> y;
 std::atomic<int> a;
@@ -15,18 +14,17 @@ std::atomic<int> a;
 void *thread1(void * threadid)
 {
     atomic_store(&x, 1);
-    std::atomic_thread_fence(std::memory_order_seq_cst); // Memory barrier
+    std::atomic_thread_fence(std::memory_order_seq_cst);
     atomic_store(&y, 1);
 }
 
 void *thread2(void * threadid)
 {
-    atomic_store(&y, 2); // Atomic store operation to set y to 2
-    // int p = x.load(std::memory_order_relaxed); // Atomic load operation to read x into p
+    atomic_store(&y, 2); 
     int p = atomic_load(&x);
     if (p == 0)
     {
-        atomic_store(&a, 1);// Atomic store operation to set a to 1
+        atomic_store(&a, 1);
     }
 }
 

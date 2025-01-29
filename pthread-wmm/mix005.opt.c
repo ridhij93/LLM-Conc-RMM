@@ -345,10 +345,8 @@ int main()
   z$r_buff1_thd0 = z$w_buff0_used && z$r_buff0_thd0 || z$w_buff1_used && z$r_buff1_thd0 ? FALSE : z$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   main$tmp_guard1 = !(x == 2 && __unbuffered_p1_EAX == 0 && __unbuffered_p2_EAX == 1 && __unbuffered_p2_EBX == 0 && __unbuffered_p3_EAX == 1 && __unbuffered_p3_EBX == 0);
   __VERIFIER_atomic_end();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

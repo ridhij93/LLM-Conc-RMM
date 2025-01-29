@@ -28,10 +28,10 @@ void *thread2(void *threadid)
 void *thread3(void *threadid)
 {
     int r;
-    atomic_store(&y, 1);// Atomic store operation to set y to 1
+    atomic_store(&y, 1);
     r = atomic_load(&x); 
     if (r == 0)
-        atomic_store(&b, 1); // Atomic store operation to set b to 1
+        atomic_store(&b, 1); 
 }
 
 int main()
@@ -50,6 +50,4 @@ int main()
   (void) pthread_join(threads[1], NULL);
   (void) pthread_join(threads[2], NULL);
   assert (a != 1 || b != 1);
-  // if (a==1 && b==1)
-  //   std::cout << "Assertion failed" << '\n';
 }

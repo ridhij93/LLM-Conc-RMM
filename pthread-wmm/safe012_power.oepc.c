@@ -324,18 +324,10 @@ int main()
   z$r_buff1_thd0 = z$w_buff0_used && z$r_buff0_thd0 || z$w_buff1_used && z$r_buff1_thd0 ? FALSE : z$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   weak$$choice1 = __VERIFIER_nondet_bool();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __unbuffered_p0_EAX = __unbuffered_p0_EAX$read_delayed ? (weak$$choice1 ? *__unbuffered_p0_EAX$read_delayed_var : __unbuffered_p0_EAX) : __unbuffered_p0_EAX;
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   main$tmp_guard1 = !(__unbuffered_p0_EAX == 1 && __unbuffered_p0_EBX == 0 && __unbuffered_p2_EAX == 1);
   __VERIFIER_atomic_end();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

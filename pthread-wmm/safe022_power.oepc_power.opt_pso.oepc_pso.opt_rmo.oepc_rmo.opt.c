@@ -241,12 +241,8 @@ int main()
   y$r_buff1_thd0 = y$w_buff0_used && y$r_buff0_thd0 || y$w_buff1_used && y$r_buff1_thd0 ? FALSE : y$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   main$tmp_guard1 = !(__unbuffered_p1_EAX == 1 && __unbuffered_p1_EBX == 0);
   __VERIFIER_atomic_end();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

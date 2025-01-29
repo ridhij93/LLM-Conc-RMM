@@ -18,12 +18,12 @@ void *thread1(void *threadid)
 
 void *thread2(void *threadid)
 {
-    atomic_store(&y, 2); // Atomic store operation to set y to 2
-    std::atomic_thread_fence(std::memory_order_seq_cst); // Memory barrier
-    int p = atomic_load(&x); // Atomic load operation to read x into p
+    atomic_store(&y, 2); 
+    std::atomic_thread_fence(std::memory_order_seq_cst); 
+    int p = atomic_load(&x); 
     if (p == 0)
     {
-        atomic_store(&a, 1); // Atomic store operation to set a to 1
+        atomic_store(&a, 1); 
     }
 }
 
@@ -40,6 +40,4 @@ int main()
   (void) pthread_join(threads[0], NULL);
   (void) pthread_join(threads[1], NULL);
   assert( y != 2 || a != 1);
-  // if ((y==2) && (a==1))
-    // cout << "Assertion failed" << endl;
 }

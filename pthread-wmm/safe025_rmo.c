@@ -337,57 +337,23 @@ int main()
   x$r_buff1_thd0 = x$w_buff0_used && x$r_buff0_thd0 || x$w_buff1_used && x$r_buff1_thd0 ? FALSE : x$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   weak$$choice0 = __VERIFIER_nondet_bool();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   weak$$choice2 = __VERIFIER_nondet_bool();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$flush_delayed = weak$$choice2;
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$mem_tmp = x;
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x = !x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x : (x$w_buff0_used && x$r_buff0_thd0 ? x$w_buff0 : x$w_buff1);
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$w_buff0 = weak$$choice2 ? x$w_buff0 : (!x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x$w_buff0 : (x$w_buff0_used && x$r_buff0_thd0 ? x$w_buff0 : x$w_buff0));
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$w_buff1 = weak$$choice2 ? x$w_buff1 : (!x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x$w_buff1 : (x$w_buff0_used && x$r_buff0_thd0 ? x$w_buff1 : x$w_buff1));
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$w_buff0_used = weak$$choice2 ? x$w_buff0_used : (!x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x$w_buff0_used : (x$w_buff0_used && x$r_buff0_thd0 ? FALSE : x$w_buff0_used));
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$w_buff1_used = weak$$choice2 ? x$w_buff1_used : (!x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x$w_buff1_used : (x$w_buff0_used && x$r_buff0_thd0 ? FALSE : FALSE));
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$r_buff0_thd0 = weak$$choice2 ? x$r_buff0_thd0 : (!x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x$r_buff0_thd0 : (x$w_buff0_used && x$r_buff0_thd0 ? FALSE : x$r_buff0_thd0));
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$r_buff1_thd0 = weak$$choice2 ? x$r_buff1_thd0 : (!x$w_buff0_used || !x$r_buff0_thd0 && !x$w_buff1_used || !x$r_buff0_thd0 && !x$r_buff1_thd0 ? x$r_buff1_thd0 : (x$w_buff0_used && x$r_buff0_thd0 ? FALSE : FALSE));
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   weak$$choice1 = __VERIFIER_nondet_bool();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __unbuffered_p2_EAX = __unbuffered_p2_EAX$read_delayed ? (weak$$choice1 ? *__unbuffered_p2_EAX$read_delayed_var : __unbuffered_p2_EAX) : __unbuffered_p2_EAX;
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   main$tmp_guard1 = !(x == 2 && __unbuffered_p0_EAX == 0 && __unbuffered_p2_EAX == 2 && __unbuffered_p2_EBX == 0);
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x = x$flush_delayed ? x$mem_tmp : x;
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   x$flush_delayed = FALSE;
   __VERIFIER_atomic_end();
-  /* Program was expected to be safe for X86, model checker should have said NO.
-This likely is a bug in the tool chain. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

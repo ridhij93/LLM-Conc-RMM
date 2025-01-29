@@ -21,19 +21,14 @@ void *thread2(void *threadid)
 {
     int p;
 
-    // Atomic load operation to read x
     p = atomic_load(&x);
 
-    // Memory barrier
     std::atomic_thread_fence(std::memory_order_seq_cst);
 
-    // Atomic store operation to set y
     atomic_store(&y, 1);
 
-    // Check condition atomically
     if (p == 2)
     {
-        // Atomic store operation to set a
         atomic_store(&a, 1);
     }
 }

@@ -338,10 +338,8 @@ int main()
   a$r_buff1_thd0 = a$w_buff0_used && a$r_buff0_thd0 || a$w_buff1_used && a$r_buff1_thd0 ? FALSE : a$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   main$tmp_guard1 = !(y == 2 && __unbuffered_p0_EAX == 0 && __unbuffered_p2_EAX == 0 && __unbuffered_p3_EAX == 1 && __unbuffered_p3_EBX == 0);
   __VERIFIER_atomic_end();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }

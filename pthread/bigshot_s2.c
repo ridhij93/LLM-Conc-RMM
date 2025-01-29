@@ -1,10 +1,3 @@
-// This file is part of the SV-Benchmarks collection of verification tasks:
-// https://github.com/sosy-lab/sv-benchmarks
-//
-// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
-// SPDX-FileCopyrightText: The CSeq project
-//
-// SPDX-License-Identifier: Apache-2.0
 
 extern void abort(void);
 #include <assert.h>
@@ -41,8 +34,7 @@ int main()
   pthread_create(&t2, 0, thread2, 0);
   pthread_join(t2, 0);
 
-  __VERIFIER_assert(v[0] == 'B');  // <---- wrong, malloc() can fail and therefore no strcpy! Competition's rule: malloc() never fails, thus it is safe.
-
+  __VERIFIER_assert(v[0] == 'B'); 
   return 0;
 }
 

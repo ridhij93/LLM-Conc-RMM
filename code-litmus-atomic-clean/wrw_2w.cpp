@@ -1,4 +1,3 @@
-//#include <boost/atomic.hpp>
 #include <thread>
 #include <iostream>
 #include <pthread.h>
@@ -14,7 +13,6 @@ std::atomic<int> b;
 
 void *thread1(void *threadid)
 {
-    // Atomic store operation to set x
     atomic_store(&x, 2);
 }
 
@@ -22,16 +20,12 @@ void *thread2(void *threadid)
 {
     int p;
 
-    // Atomic load operation to read x
     p = atomic_load(&x);
 
-    // Atomic store operation to set y
     atomic_store(&y, 1);
 
-    // Check condition atomically
     if (p == 2)
     {
-        // Atomic store operation to set a
         atomic_store(&a, 1);
     }
 
@@ -39,10 +33,8 @@ void *thread2(void *threadid)
 
 void *thread3(void *threadid)
 {
-    // Atomic store operation to set y
     atomic_store(&y, 2);
 
-    // Atomic store operation to set x
     atomic_store(&x, 1);
 
 }

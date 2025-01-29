@@ -11,8 +11,8 @@ std::atomic<int> y;
 
 void *thread1(void *threadid)
 {
-  atomic_store(&x, 1);
-  atomic_store(&y, 2);
+  atomic_store(&x, 2);
+  atomic_store(&y, 1);
 }
 
 void *thread2(void *threadid)

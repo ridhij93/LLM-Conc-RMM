@@ -1,11 +1,3 @@
-// This file is part of the SV-Benchmarks collection of verification tasks:
-// https://github.com/sosy-lab/sv-benchmarks
-//
-// SPDX-FileCopyrightText: 2011-2020 The SV-Benchmarks community
-// SPDX-FileCopyrightText: The ESBMC project
-//
-// SPDX-License-Identifier: Apache-2.0
-
 extern void abort(void);
 #include <assert.h>
 void reach_error() { assert(0); }
@@ -13,7 +5,6 @@ void reach_error() { assert(0); }
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-//#include <assert.h>
 
 #define USAGE "./twostage <param1> <param2>\n"
 

@@ -7,16 +7,14 @@
 
 using namespace std;
 
-// Global variables
 std::atomic<int> x;
 std::atomic<int> y;
 
 void *thread1(void *threadid)
 {
     atomic_store(&x, 2);
-    std::atomic_thread_fence(std::memory_order_seq_cst); // Memory barrier
+    std::atomic_thread_fence(std::memory_order_seq_cst); 
     atomic_store(&y, 1);
- // Atomic store operation to set y to 1
 }
 
 void *thread2(void *threadid)
@@ -38,6 +36,4 @@ int main()
   (void) pthread_join(threads[0], NULL);
   (void) pthread_join(threads[1], NULL);
   assert( x != 2 || y != 2);
-  // if(x==2 && y==2)
-    // std::cout << "Assertion Failed" << '\n';
 }

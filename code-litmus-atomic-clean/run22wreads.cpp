@@ -59,7 +59,4 @@ int main()
   (void) pthread_join(threads[2], NULL);
   (void) pthread_join(threads[3], NULL);
   assert (a != 1 || b != 1);
-  // if (a==1 && b == 1)
-  //   cout << "Assertion Failed" << endl;
-  // std::cout << "xy:" << a << " " << b <<" "<<x<<" "<<y<< '\n';
 }

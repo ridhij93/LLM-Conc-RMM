@@ -305,36 +305,21 @@ int main()
   y$r_buff1_thd0 = y$w_buff0_used && y$r_buff0_thd0 || y$w_buff1_used && y$r_buff1_thd0 ? FALSE : y$r_buff1_thd0;
   __VERIFIER_atomic_end();
   __VERIFIER_atomic_begin();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   weak$$choice0 = __VERIFIER_nondet_bool();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   weak$$choice2 = __VERIFIER_nondet_bool();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$flush_delayed = weak$$choice2;
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$mem_tmp = y;
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y = !y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y : (y$w_buff0_used && y$r_buff0_thd0 ? y$w_buff0 : y$w_buff1);
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$w_buff0 = weak$$choice2 ? y$w_buff0 : (!y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y$w_buff0 : (y$w_buff0_used && y$r_buff0_thd0 ? y$w_buff0 : y$w_buff0));
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$w_buff1 = weak$$choice2 ? y$w_buff1 : (!y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y$w_buff1 : (y$w_buff0_used && y$r_buff0_thd0 ? y$w_buff1 : y$w_buff1));
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$w_buff0_used = weak$$choice2 ? y$w_buff0_used : (!y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y$w_buff0_used : (y$w_buff0_used && y$r_buff0_thd0 ? FALSE : y$w_buff0_used));
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$w_buff1_used = weak$$choice2 ? y$w_buff1_used : (!y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y$w_buff1_used : (y$w_buff0_used && y$r_buff0_thd0 ? FALSE : FALSE));
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$r_buff0_thd0 = weak$$choice2 ? y$r_buff0_thd0 : (!y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y$r_buff0_thd0 : (y$w_buff0_used && y$r_buff0_thd0 ? FALSE : y$r_buff0_thd0));
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$r_buff1_thd0 = weak$$choice2 ? y$r_buff1_thd0 : (!y$w_buff0_used || !y$r_buff0_thd0 && !y$w_buff1_used || !y$r_buff0_thd0 && !y$r_buff1_thd0 ? y$r_buff1_thd0 : (y$w_buff0_used && y$r_buff0_thd0 ? FALSE : FALSE));
-  /* Program proven to be relaxed for X86, model checker says YES. */
   main$tmp_guard1 = !(x == 2 && y == 2 && __unbuffered_p2_EAX == 0 && __unbuffered_p3_EAX == 0);
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y = y$flush_delayed ? y$mem_tmp : y;
-  /* Program proven to be relaxed for X86, model checker says YES. */
   y$flush_delayed = FALSE;
   __VERIFIER_atomic_end();
-  /* Program proven to be relaxed for X86, model checker says YES. */
   __VERIFIER_assert(main$tmp_guard1);
   return 0;
 }
